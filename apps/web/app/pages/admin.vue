@@ -4,14 +4,6 @@ import { useGameStore } from '~/stores/game';
 
 const store = useGameStore();
 const api = useApi();
-const pw = ref('');
-const pwError = ref(false);
-
-async function login() {
-  const ok = await store.login(pw.value);
-  pwError.value = !ok;
-  if (ok) pw.value = '';
-}
 
 const modes = [
   { key: 'random', label: 'สุ่มจริง', icon: 'dices' },
@@ -47,13 +39,7 @@ const lock = computed(() => store.session?.lock ?? {});
       Game Master
     </h1>
 
-    <div v-if="!store.adminAuthed" class="aofa-card mx-auto mt-8 max-w-md p-7 text-center text-outline">
-      <Icon name="shield" :size="40" color="#6D28D9" class="mx-auto" />
-      <h2 class="font-head mt-2 text-2xl font-extrabold">ห้องควบคุมเกม</h2>
-      <input v-model="pw" type="password" placeholder="รหัสผ่าน" class="mt-3 w-full rounded-[14px] border-[2.5px] border-outline px-4 py-3 text-center text-outline outline-none" @keyup.enter="login" />
-      <p v-if="pwError" class="mt-1 text-sm text-accent-red">รหัสผ่านไม่ถูกต้อง</p>
-      <button class="aofa-btn aofa-btn-pink mt-4 w-full py-3 text-lg" @click="login">เข้าสู่ระบบ</button>
-    </div>
+    <LoginCard v-if="!store.adminAuthed" title="ห้องควบคุมเกม (Game Master)" subtitle="เข้าสู่ระบบเพื่อตั้งค่าโหมด รอบ รางวัล และล็อกผล" />
 
     <div v-else class="grid gap-5" style="grid-template-columns: repeat(auto-fit, minmax(330px, 1fr))">
       <!-- event + mode -->

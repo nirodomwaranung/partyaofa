@@ -1,15 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useGameStore } from '~/stores/game';
 
 const store = useGameStore();
-const pw = ref('');
-const pwError = ref(false);
-async function login() {
-  const ok = await store.login(pw.value);
-  pwError.value = !ok;
-  if (ok) pw.value = '';
-}
 
 const modes = [
   { key: 'random', label: 'สุ่ม', icon: 'dices' },
@@ -39,11 +32,7 @@ function reset() {
     </h1>
     <p class="mb-4 text-sm text-[#C9B6FF]">คุมจอ TV จากมือถือผ่าน Socket.IO</p>
 
-    <div v-if="!store.adminAuthed" class="aofa-card p-6 text-center text-outline">
-      <input v-model="pw" type="password" placeholder="รหัสผ่าน Game Master" class="w-full rounded-[14px] border-[2.5px] border-outline px-4 py-3 text-center outline-none" @keyup.enter="login" />
-      <p v-if="pwError" class="mt-1 text-sm text-accent-red">รหัสผ่านไม่ถูกต้อง</p>
-      <button class="aofa-btn aofa-btn-pink mt-3 w-full py-3 text-lg" @click="login">เข้าสู่ระบบ</button>
-    </div>
+    <LoginCard v-if="!store.adminAuthed" title="รีโมต Game Master" subtitle="เข้าสู่ระบบเพื่อคุมจอ TV จากมือถือ" />
 
     <div v-else class="space-y-4">
       <!-- mode -->

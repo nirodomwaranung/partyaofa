@@ -1,19 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useGameStore } from '~/stores/game';
 
 const store = useGameStore();
 const api = useApi();
-const pw = ref('');
-const pwError = ref(false);
 const fmt = (n: number) => (n >= 1000 ? (n / 1000).toFixed(n % 1000 ? 1 : 0).replace('.0', '') + 'k' : String(n));
 const players = computed(() => store.players);
 
-async function login() {
-  const ok = await store.login(pw.value);
-  pwError.value = !ok;
-  if (ok) pw.value = '';
-}
 async function addPlayer() {
   await api.post('/players', {});
 }
@@ -45,18 +38,7 @@ function onUpload(id: string, e: Event) {
     </div>
 
     <!-- login gate -->
-    <div v-if="!store.adminAuthed" class="aofa-card mx-auto mt-8 max-w-md p-7 text-center text-outline">
-      <Icon name="lock" :size="40" color="#6D28D9" class="mx-auto" />
-      <h2 class="font-head mt-2 text-2xl font-extrabold">Game Master เท่านั้น</h2>
-      <p class="mb-4 mt-1 text-sm text-[#7a6a99]">ใส่รหัสผ่านเพื่อจัดการผู้เล่น</p>
-      <input
-        v-model="pw" type="password" placeholder="รหัสผ่าน" class="w-full rounded-[14px] border-[2.5px] border-outline px-4 py-3 text-center text-outline outline-none"
-        :class="pwError ? 'border-accent-red' : ''" @keyup.enter="login"
-      />
-      <p v-if="pwError" class="mt-1 text-sm text-accent-red">รหัสผ่านไม่ถูกต้อง</p>
-      <button class="aofa-btn aofa-btn-pink mt-4 w-full py-3 text-lg" @click="login">เข้าสู่ระบบ</button>
-      <p class="mt-3 text-xs text-[#9a86bd]">เดโม: รหัส <b>aofa2026</b></p>
-    </div>
+    <LoginCard v-if="!store.adminAuthed" title="Game Master เท่านั้น" subtitle="เข้าสู่ระบบเพื่อจัดการผู้เล่น" />
 
     <div v-else>
       <p class="mb-5 flex items-center gap-1.5 text-sm text-[#C9B6FF]">
