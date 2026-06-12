@@ -1,79 +1,74 @@
 # 🚀 Deploy — Party AOFA
 
 ```
-aofa.cloud        → Vercel   (Nuxt web / SSR)
-api.aofa.cloud    → VPS      (NestJS + Socket.IO, Docker + Caddy auto-HTTPS)
 DB / Auth / Storage → Supabase (already live)
+Web + API           → your choice below
 ```
 
-`aofa.cloud` DNS is on Cloudflare and the apex already points to Vercel.
+Two ways to serve the frontend. The API (NestJS + Socket.IO) always runs on the
+VPS because it needs persistent WebSocket connections.
 
 ---
 
-## 1) API on your VPS (api.aofa.cloud)
+## ✅ Option A (recommended): everything on the VPS
 
-**Prereqs:** a VPS with a public IP, Docker + Docker Compose, ports **80 & 443** open.
+Web **and** API on one VPS, both behind Caddy (auto-HTTPS). Nothing to log into.
 
-### a. Point DNS
-In Cloudflare add an **A record**:
+### a. DNS (Cloudflare) — all → VPS IP, proxy **OFF** (grey cloud / "DNS only")
+| Type | Name | Value |
+|---|---|---|
+| A | `@` (aofa.cloud) | `<VPS IP>` |
+| A | `www` | `<VPS IP>` |
+| A | `api` | `<VPS IP>` |
 
-| Type | Name | Value | Proxy |
-|---|---|---|---|
-| A | `api` | `<VPS public IP>` | **DNS only** (grey cloud) |
+> ปิด Cloudflare proxy (เมฆเทา) ทุกตัว เพื่อให้ Caddy ขอใบรับรอง Let's Encrypt ได้
 
-> ใช้ "DNS only" (ปิด proxy สีส้ม) เพื่อให้ Caddy ขอใบรับรอง Let's Encrypt ได้ และ WebSocket ทำงานตรง ๆ
-
-### b. Deploy on the VPS
+### b. On the VPS
 ```bash
-git clone https://github.com/nirodomwaranung/partyaofa.git
-cd partyaofa
+cd ~/partyaofa
+git pull
 
-# create the production env (fill Supabase values + your admin email)
-cp deploy/.env.production.example .env
-nano .env           # set <DB-PASSWORD>, SERVICE_ROLE/ANON keys, ADMIN_EMAILS
+# .env must include the web vars too (NUXT_PUBLIC_*). See deploy/.env.production.example
+nano .env
 
-# build + run (API + Caddy)
 docker compose -f docker-compose.prod.yml up -d --build
-
-# (one-time, if the DB schema isn't applied yet)
-docker compose -f docker-compose.prod.yml exec api \
-  npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
 ```
-Caddy auto-issues HTTPS for `api.aofa.cloud`. Check: `https://api.aofa.cloud/api/games` → JSON.
+Caddy issues HTTPS for `aofa.cloud`, `www.aofa.cloud`, and `api.aofa.cloud`.
+Open **https://aofa.cloud** 🎉
 
 Update later: `git pull && docker compose -f docker-compose.prod.yml up -d --build`
 
 ---
 
-## 2) Web on Vercel (aofa.cloud)
+## Option B: Web on Vercel, API on VPS
 
-1. **Import** the GitHub repo `nirodomwaranung/partyaofa` into Vercel.
-2. **Root Directory:** `apps/web`  (Vercel auto-detects Nuxt; Nitro builds the Vercel preset).
+Keep the apex on Vercel (managed CDN/SSR). Requires a Vercel login.
+
+1. Vercel → **Add New → Project** → import `nirodomwaranung/partyaofa`
+2. **Root Directory:** `apps/web`
 3. **Environment Variables** (Production):
    ```
-   NUXT_PUBLIC_API_BASE        = https://api.aofa.cloud
-   NUXT_PUBLIC_SOCKET_URL      = https://api.aofa.cloud
-   NUXT_PUBLIC_SUPABASE_URL    = https://madppayyvvhvvjlltoma.supabase.co
+   NUXT_PUBLIC_API_BASE          = https://api.aofa.cloud
+   NUXT_PUBLIC_SOCKET_URL        = https://api.aofa.cloud
+   NUXT_PUBLIC_SUPABASE_URL      = https://madppayyvvhvvjlltoma.supabase.co
    NUXT_PUBLIC_SUPABASE_ANON_KEY = <anon public key>
    ```
-4. **Domains:** add `aofa.cloud` (and `www.aofa.cloud`) to the Vercel project.
-5. Deploy.
+4. **Domains:** add `aofa.cloud` + `www.aofa.cloud`.
+5. On the VPS, run only the API (the `web` + its Caddy block aren't needed).
 
 ---
 
-## 3) Wire-up checklist
+## Wire-up checklist (both options)
 
-- [ ] API `.env` → `CORS_ORIGIN="https://aofa.cloud,https://www.aofa.cloud"`
-- [ ] API `.env` → `ADMIN_EMAILS="you@email.com"` (lock Game Master access)
-- [ ] Supabase → Authentication → URL Configuration → add `https://aofa.cloud` to redirect/site URLs
-- [ ] Supabase → Authentication → Providers → Email → **disable public signup** (only admin-created accounts)
-- [ ] `api.aofa.cloud` A record → VPS IP (DNS only)
+- [ ] VPS `.env` → `CORS_ORIGIN="https://aofa.cloud,https://www.aofa.cloud"`
+- [ ] VPS `.env` → `ADMIN_EMAILS="you@email.com"` (lock Game Master access)
+- [ ] VPS `.env` → `NUXT_PUBLIC_*` filled (Option A only)
+- [ ] Supabase → Authentication → URL Configuration → Site URL = `https://aofa.cloud`
+- [ ] Supabase → Authentication → Providers → Email → **disable public signup**
 - [ ] Create Game Master: `npm run create-admin -- you@email.com '<password>'`
-- [ ] Test: open https://aofa.cloud → /admin → log in → start a game on /play/:key
-
----
+- [ ] Test: https://aofa.cloud → /admin → log in → start a game on /play/:key
 
 ## Notes
-- Socket.IO needs a persistent server → that's why the API is on the VPS, not Vercel.
-- The VPS only runs the API + Caddy; PostgreSQL is Supabase (no DB container).
-- Secrets live only in the VPS `.env` and Vercel env vars — never committed.
+- Socket.IO needs a persistent server → the API is always on the VPS.
+- The VPS runs the app containers + Caddy; PostgreSQL is Supabase (no DB container).
+- Secrets live only in the VPS `.env` (and Vercel env vars for Option B) — never committed.

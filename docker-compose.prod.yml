@@ -20,6 +20,20 @@ services:
       - "3001"
     restart: unless-stopped
 
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: aofa-web
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      NITRO_HOST: 0.0.0.0
+      NITRO_PORT: 3000
+    expose:
+      - "3000"
+    restart: unless-stopped
+
   caddy:
     image: caddy:2-alpine
     container_name: aofa-caddy
@@ -32,6 +46,7 @@ services:
       - caddy_config:/config
     depends_on:
       - api
+      - web
     restart: unless-stopped
 
 volumes:

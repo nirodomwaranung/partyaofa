@@ -1,15 +1,30 @@
-# Party AOFA API — Caddy reverse proxy with automatic HTTPS (Let's Encrypt).
+# Party AOFA — Caddy reverse proxy with automatic HTTPS (Let's Encrypt).
 # WebSocket (Socket.IO) is proxied transparently by Caddy.
 #
-# DNS required: api.aofa.cloud  A  ->  <this VPS public IP>
+# DNS required (both A records → this VPS public IP, Cloudflare proxy OFF):
+#   aofa.cloud      A  ->  <VPS IP>
+#   www.aofa.cloud  A  ->  <VPS IP>
+#   api.aofa.cloud  A  ->  <VPS IP>
 # Ports 80 + 443 must be open for the ACME challenge + TLS.
 
+# ---- Web (Nuxt SSR) ----
+aofa.cloud, www.aofa.cloud {
+	encode zstd gzip
+	reverse_proxy web:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000;"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}
+
+# ---- API (NestJS + Socket.IO) ----
 api.aofa.cloud {
 	encode zstd gzip
 	reverse_proxy api:3001
 
 	header {
-		# basic hardening
 		Strict-Transport-Security "max-age=31536000;"
 		X-Content-Type-Options "nosniff"
 		-Server
