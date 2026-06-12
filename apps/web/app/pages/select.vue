@@ -28,12 +28,18 @@ function open(key: string) {
 
 <template>
   <div>
-    <h1 class="font-head text-[42px] font-extrabold text-white" style="text-shadow: 0 4px 0 rgba(0,0,0,.18)">
-      เลือกเกมปาร์ตี้
-    </h1>
-    <p class="mb-6 mt-1.5 text-base font-medium text-[#D9C9FF]">
-      แตะเกมเพื่อขึ้นจอใหญ่ — ทุกเกมเล่นได้จริง ลุ้นกันทั้งงาน!
-    </p>
+    <div class="flex items-center gap-4">
+      <RiveCharacter src="mascot.riv" :size="96" color="#FFD93D" />
+      <div>
+        <h1 class="font-head text-[42px] font-extrabold text-white" style="text-shadow: 0 4px 0 rgba(0,0,0,.18)">
+          เลือกเกมปาร์ตี้
+        </h1>
+        <p class="mt-1.5 text-base font-medium text-[#D9C9FF]">
+          แตะเกมเพื่อขึ้นจอใหญ่ — ทุกเกมเล่นได้จริง ลุ้นกันทั้งงาน!
+        </p>
+      </div>
+    </div>
+    <div class="mb-6" />
 
     <div class="grid gap-[18px]" style="grid-template-columns: repeat(auto-fill, minmax(212px, 1fr))">
       <button
