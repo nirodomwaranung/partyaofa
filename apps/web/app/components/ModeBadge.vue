@@ -3,16 +3,18 @@ import { computed } from 'vue';
 import { useGameStore } from '~/stores/game';
 const store = useGameStore();
 const mode = computed(() => store.mode);
+// just a colored status dot — no label (random=green, weight=blue, lock=yellow)
 const meta = computed(() => ({
-  random: { label: 'สุ่มจริง', icon: 'dices', color: '#34D399' },
-  weight: { label: 'ถ่วงน้ำหนัก', icon: 'scale', color: '#4D96FF' },
-  lock: { label: 'ล็อกผล', icon: 'lock', color: '#FFD93D' },
+  random: { label: 'สุ่มจริง', color: '#34D399' },
+  weight: { label: 'ถ่วงน้ำหนัก', color: '#4D96FF' },
+  lock: { label: 'ล็อกผล', color: '#FFD93D' },
 }[mode.value]));
 </script>
 
 <template>
-  <div class="flex items-center gap-1.5 rounded-[12px] border-2 border-outline px-3 py-1.5 font-head text-xs font-bold"
-    :style="{ background: meta.color, color: '#2A1B4D' }">
-    <Icon :name="meta.icon" :size="14" color="#2A1B4D" />{{ meta.label }}
-  </div>
+  <span
+    class="inline-block h-3.5 w-3.5 rounded-full border-2 border-outline"
+    :title="meta.label"
+    :style="{ background: meta.color, boxShadow: `0 0 0 4px ${meta.color}33` }"
+  />
 </template>

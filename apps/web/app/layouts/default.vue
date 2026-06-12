@@ -20,15 +20,23 @@ watch(() => store.lastEvent, (e) => {
   ctTimer = setTimeout(() => (confetti.value = false), 3200);
 });
 
-// TV follows the Game Master: when the remote launches a game (admin:startGame
-// → game:event 'start'), screens on /select or /play/* jump to that game.
-// Control pages (/admin, /remote, /players, /dashboard) are left alone.
-watch(() => store.lastEvent, (e) => {
-  if (!e || e.type !== 'start' || !e.gameKey) return;
+// TV follows the Game Master. Two triggers for reliability:
+//  1) the transient game:event 'start' (fires the moment the remote launches) —
+//     bounces /select or /play/* to the chosen game.
+//  2) session.activeGameKey changing (arrives via state:sync) — keeps a screen
+//     already on /play/* in sync even if it missed the 'start' event (reconnect).
+// Control pages (/admin, /remote, /players, /dashboard) are never moved.
+function followTo(gameKey: string | null | undefined, fromSelect: boolean) {
+  if (!gameKey) return;
   const p = route.path;
-  const isTvPage = p === '/select' || p.startsWith('/play');
-  if (isTvPage && p !== `/play/${e.gameKey}`) navigateTo(`/play/${e.gameKey}`);
+  const onPlay = p.startsWith('/play');
+  const onSelect = p === '/select';
+  if ((onPlay || (fromSelect && onSelect)) && p !== `/play/${gameKey}`) navigateTo(`/play/${gameKey}`);
+}
+watch(() => store.lastEvent, (e) => {
+  if (e && e.type === 'start') followTo(e.gameKey, true);
 });
+watch(() => store.session?.activeGameKey, (k) => followTo(k, false));
 
 const nav = [
   { to: '/select', label: 'เลือกเกม', icon: 'gamepad-2' },
