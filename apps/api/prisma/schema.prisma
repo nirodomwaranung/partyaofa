@@ -1,0 +1,103 @@
+// Party AOFA — data model
+// Derived from design/Party-AOFA-Spec.md §3 (Data Model)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ResultMode {
+  random
+  weight
+  lock
+}
+
+/// A person who plays the games. Stats accumulate across rounds.
+model Player {
+  id      String  @id @default(cuid())
+  nick    String
+  name    String
+  company String  @default("")
+  dept    String  @default("")
+  role    String?
+  color   String  @default("#FF7A59")
+  photo   String? // dataURL or uploaded URL
+
+  // accumulated stats
+  wins   Int @default(0)
+  drinks Int @default(0) // times forced to drink
+  prize  Int @default(0) // accumulated prize money (THB)
+  plays  Int @default(0)
+
+  createdAt    Int           @default(0)
+  results      RoundResult[]
+  createdAtTs  DateTime      @default(now())
+}
+
+/// A game definition + admin-editable config (prizes/penalty/cover).
+model Game {
+  key   String  @id // 'wheel' | 'slot' | ...
+  name  String
+  type  String
+  icon  String
+  cover String? // uploaded cover image (override)
+
+  // prizes per rank (THB)
+  p1 Int @default(0)
+  p2 Int @default(0)
+  p3 Int @default(0)
+
+  loserDrink Boolean @default(true)
+
+  // team games (tiger-dragon) side images
+  tigerImg  String?
+  dragonImg String?
+
+  order   Int           @default(0)
+  results RoundResult[]
+}
+
+/// A reward inside mystery boxes — CRUD-able by admin.
+model Reward {
+  id    String  @id @default(cuid())
+  icon  String  @default("gift")
+  label String
+  img   String?
+  order Int     @default(0)
+}
+
+/// Singleton live session state (one row, id = "live").
+/// Mirrors the Socket.IO source-of-truth.
+model Session {
+  id         String     @id @default("live")
+  eventName  String     @default("งานเลี้ยง AOFA 2026")
+  resultMode ResultMode @default(random)
+
+  roundIds   String[] // players in current round
+  spotlightId String?  // player currently playing (solo games)
+
+  weights Json @default("{}") // { [playerId]: number }
+  lock    Json @default("{}") // { wheel, slot, race, card, bomb, number, boxing, td, mine }
+
+  activeGameKey String?
+  updatedAt     DateTime @updatedAt
+}
+
+/// Append-only history of every resolved game outcome.
+model RoundResult {
+  id        String   @id @default(cuid())
+  gameKey   String
+  game      Game     @relation(fields: [gameKey], references: [key])
+  playerId  String?
+  player    Player?  @relation(fields: [playerId], references: [id])
+  outcome   String // 'win' | 'lose' | 'drink' | 'cash' | 'jackpot' | 'safe' | 'none'
+  rank      Int? // 1,2,3 ...
+  amount    Int      @default(0)
+  drink     Boolean  @default(false)
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+}
