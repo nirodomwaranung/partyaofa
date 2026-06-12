@@ -1,83 +1,53 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useGameStore } from '~/stores/game';
 import { useSounds } from '~/composables/useSounds';
 import type { Game } from '~/stores/game';
 
-const props = defineProps<{ game: Game; gameKey: string }>();
+defineProps<{ game: Game; gameKey: string }>();
 const store = useGameStore();
 const sounds = useSounds();
 
+// Prize table — must match the server (game-engine/constants.ts WHEEL).
 const WHEEL = [
-  { label: 'เงิน 500', color: '#6BCB77' }, { label: 'Voucher', color: '#4D96FF' },
-  { label: 'รอดตัว', color: '#A0E548' }, { label: 'ยก 1', color: '#FF9F45' },
-  { label: 'เงิน 1,000', color: '#FFD93D' }, { label: 'ยก 3', color: '#FF6B6B' },
-  { label: 'JACKPOT', color: '#C780FA' }, { label: 'รอดตัว', color: '#22D3EE' },
+  { label: 'เงิน 500', icon: 'banknote', color: '#6BCB77', kind: 'cash' },
+  { label: 'Voucher', icon: 'ticket', color: '#4D96FF', kind: 'cash' },
+  { label: 'รอดตัว', icon: 'shield-check', color: '#A0E548', kind: 'safe' },
+  { label: 'ยก 1 ช็อต', icon: 'beer', color: '#FF9F45', kind: 'drink' },
+  { label: 'เงิน 1,000', icon: 'coins', color: '#FFD93D', kind: 'cash' },
+  { label: 'ยก 3 ช็อต', icon: 'beer', color: '#FF6B6B', kind: 'drink' },
+  { label: 'JACKPOT', icon: 'sparkles', color: '#C780FA', kind: 'jackpot' },
+  { label: 'รอดตัว', icon: 'shield-check', color: '#22D3EE', kind: 'safe' },
 ];
+const SEG = 360 / WHEEL.length;
+const stops = WHEEL.map((p, i) => `${p.color} ${i * SEG}deg ${(i + 1) * SEG}deg`).join(',');
 
-const host = ref<HTMLDivElement | null>(null);
+const angle = ref(0);
 const spinning = ref(false);
 const result = ref<any>(null);
-let app: any = null;
-let wheel: any = null;
 let raf = 0;
 
-async function buildPixi() {
-  if (!import.meta.client || !host.value) return;
-  const PIXI = await import('pixi.js');
-  app = new PIXI.Application();
-  await app.init({ width: 380, height: 380, backgroundAlpha: 0, antialias: true });
-  host.value.appendChild(app.canvas);
-
-  wheel = new PIXI.Container();
-  wheel.position.set(190, 190);
-  const R = 180;
-  const seg = (Math.PI * 2) / WHEEL.length;
-  WHEEL.forEach((s, i) => {
-    const g = new PIXI.Graphics();
-    const a0 = i * seg - Math.PI / 2 - seg / 2;
-    g.moveTo(0, 0).arc(0, 0, R, a0, a0 + seg).lineTo(0, 0).fill(s.color);
-    g.stroke({ width: 3, color: 0x2a1b4d });
-    wheel.addChild(g);
-    const label = new PIXI.Text({
-      text: s.label,
-      style: { fontFamily: 'Baloo Thai 2', fontSize: 17, fontWeight: '700', fill: '#2A1B4D', align: 'center' },
-    });
-    label.anchor.set(0.5);
-    const mid = a0 + seg / 2;
-    label.position.set(Math.cos(mid) * R * 0.62, Math.sin(mid) * R * 0.62);
-    label.rotation = mid + Math.PI / 2;
-    wheel.addChild(label);
-  });
-  app.stage.addChild(wheel);
-}
-
-function easeOutCubic(t: number) { return 1 - Math.pow(1 - t, 3); }
-
-function spinTo(index: number, prize: any) {
-  if (!wheel) return;
+function spinTo(idx: number, prize: any) {
   spinning.value = true;
   result.value = null;
   sounds.play('drum');
-  const seg = 360 / WHEEL.length;
-  const cur = ((wheel.rotation * 180) / Math.PI) % 360;
-  const desired = (360 - index * seg) % 360; // pointer at top
-  const delta = ((desired - cur + 360) % 360) + 360 * 5;
-  const start = (wheel.rotation * 180) / Math.PI;
-  const end = start + delta;
-  const dur = 4000;
-  const t0 = performance.now();
+  const cur = angle.value;
+  const curMod = ((cur % 360) + 360) % 360;
+  const desired = (360 - (idx * SEG + SEG / 2)) % 360;
+  const delta = ((desired - curMod + 360) % 360) + 360 * 5;
+  const start = cur, end = cur + delta, dur = 4000, t0 = performance.now();
+  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
   cancelAnimationFrame(raf);
   const step = (now: number) => {
     const t = Math.min(1, (now - t0) / dur);
-    const deg = start + (end - start) * easeOutCubic(t);
-    wheel.rotation = (deg * Math.PI) / 180;
+    angle.value = start + (end - start) * ease(t);
     if (t < 1) raf = requestAnimationFrame(step);
     else {
+      angle.value = end;
       spinning.value = false;
-      result.value = prize;
+      result.value = { ...WHEEL[idx], ...prize };
       if (prize.kind === 'drink') sounds.play('lose');
-      else sounds.play('winner');
+      else sounds.play(prize.kind === 'jackpot' ? 'jackpot' : 'winner');
     }
   };
   raf = requestAnimationFrame(step);
@@ -85,24 +55,35 @@ function spinTo(index: number, prize: any) {
 
 function run() {
   if (spinning.value) return;
-  store.resolveGame('wheel'); // server decides → game:event broadcast handles animation
+  store.resolveGame('wheel');
 }
+const spotName = computed(() => store.spotlight?.nick ?? '');
+const subtitle = (kind: string) => (kind === 'drink' ? 'ซดเลย!' : kind === 'safe' ? 'รอดไปอีกตา' : 'ยินดีด้วย!');
 
-// animate whenever a wheel result arrives (works for both TV & remote triggers)
 watch(() => store.lastEvent, (e) => {
   if (e && e.type === 'result' && e.gameKey === 'wheel') spinTo(e.payload.index, e.payload.prize);
 });
-
-onMounted(buildPixi);
-onBeforeUnmount(() => { cancelAnimationFrame(raf); app?.destroy(true); });
+onBeforeUnmount(() => cancelAnimationFrame(raf));
 </script>
 
 <template>
-  <div class="flex flex-col items-center pb-2 pt-3">
+  <div class="flex flex-col items-center pb-2 pt-3.5">
     <div class="relative" style="width: 380px; height: 380px">
       <!-- pointer -->
-      <div class="absolute left-1/2 top-[-6px] z-[5] -translate-x-1/2" style="width:0;height:0;border-left:15px solid transparent;border-right:15px solid transparent;border-top:28px solid #FFD93D;filter:drop-shadow(0 3px 1px rgba(0,0,0,.4))" />
-      <div ref="host" />
+      <div class="absolute left-1/2 top-[-6px] z-[5] -translate-x-1/2"
+        style="width:0;height:0;border-left:15px solid transparent;border-right:15px solid transparent;border-top:28px solid #FFD93D;filter:drop-shadow(0 3px 1px rgba(0,0,0,.4))" />
+      <!-- wheel -->
+      <div class="absolute inset-0 rounded-full"
+        :style="{ border: '8px solid #2A1B4D', background: `conic-gradient(${stops})`, boxShadow: '0 0 0 6px #FFD93D, 0 14px 0 rgba(0,0,0,.3)', transform: `rotate(${angle}deg)` }">
+        <div v-for="(p, i) in WHEEL" :key="i" class="absolute left-1/2 top-1/2"
+          style="width:0;height:0" :style="{ transform: `rotate(${i * SEG + SEG / 2}deg)` }">
+          <div class="absolute flex flex-col items-center gap-0.5" style="left:-32px;top:-170px;width:64px;color:#2A1B4D">
+            <Icon :name="p.icon" :size="24" color="#2A1B4D" :stroke="2.4" />
+            <div class="font-head text-center text-[11px] font-bold" style="text-shadow:0 1px 0 rgba(255,255,255,.4)">{{ p.label }}</div>
+          </div>
+        </div>
+      </div>
+      <!-- center hub -->
       <div class="absolute left-1/2 top-1/2 z-[4] flex h-[78px] w-[78px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-outline shadow-hard-sm"
         style="background: linear-gradient(180deg, #FFE066, #FFC93C)">
         <Icon name="sparkles" :size="32" color="#2A1B4D" :stroke="2.4" />
@@ -110,14 +91,18 @@ onBeforeUnmount(() => { cancelAnimationFrame(raf); app?.destroy(true); });
     </div>
 
     <Transition name="pop">
-      <div v-if="result" class="mt-4 animate-pop rounded-[16px] border-[3px] border-outline px-6 py-2 font-head text-2xl font-extrabold"
-        :style="{ background: result.color, color: '#2A1B4D' }">
-        {{ result.label }}
+      <div v-if="result" class="mb-1.5 mt-[18px] flex items-center gap-3 rounded-[18px] border-[3px] border-outline px-[22px] py-2.5 shadow-hard-btn"
+        style="animation: pop .4s" :style="{ background: result.color }">
+        <Icon :name="result.icon" :size="32" color="#2A1B4D" :stroke="2.4" />
+        <div>
+          <div class="font-head text-[22px] font-extrabold text-outline">{{ spotName ? spotName + ' ' : '' }}ได้ {{ result.label }}</div>
+          <div class="text-[13px] font-semibold text-outline/70">{{ subtitle(result.kind) }}</div>
+        </div>
       </div>
     </Transition>
 
-    <button class="aofa-btn aofa-btn-pink mt-4 px-8 py-3.5 text-lg" :disabled="spinning" @click="run">
-      <Icon name="play" :size="20" color="#fff" />{{ spinning ? 'กำลังหมุน…' : 'หมุนวงล้อ!' }}
+    <button class="aofa-btn aofa-btn-pink mt-[18px] px-[34px] py-3.5 text-[19px]" :disabled="spinning" @click="run">
+      {{ spinning ? 'กำลังหมุน...' : 'หมุนวงล้อ!' }}
     </button>
   </div>
 </template>

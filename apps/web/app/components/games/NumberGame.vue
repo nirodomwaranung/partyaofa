@@ -4,37 +4,32 @@ import { useGameStore } from '~/stores/game';
 import { useSounds } from '~/composables/useSounds';
 import type { Game } from '~/stores/game';
 
-defineProps<{ game: Game; gameKey: string }>();
+const props = defineProps<{ game: Game; gameKey: string }>();
 const store = useGameStore();
 const sounds = useSounds();
 
 const picks = reactive<Record<string, number>>({});
 const rolling = ref(false);
-const display = ref<number | null>(null);
+const numShow = ref<number | null>(null);
 const center = ref<number | null>(null);
 const ranks = ref<any[] | null>(null);
 let timer: any = null;
 
 function animate(target: number, ranked: any[]) {
-  rolling.value = true;
-  ranks.value = null;
-  center.value = null;
+  rolling.value = true; ranks.value = null; center.value = null;
   sounds.play('drum');
-  const t0 = performance.now();
-  const dur = 8000;
+  const t0 = performance.now(), dur = 15000;
   const tick = () => {
     const el = performance.now() - t0;
     if (el >= dur) {
-      display.value = target;
-      center.value = target;
-      ranks.value = ranked;
-      rolling.value = false;
+      numShow.value = target; center.value = target; ranks.value = ranked; rolling.value = false;
       sounds.play('winner');
       return;
     }
-    display.value = 1 + Math.floor(Math.random() * 100);
+    numShow.value = 1 + Math.floor(Math.random() * 100);
     const pr = el / dur;
-    timer = setTimeout(tick, 40 + pr * pr * 480);
+    sounds.play('drum');
+    timer = setTimeout(tick, 40 + pr * pr * 640);
   };
   tick();
 }
@@ -45,6 +40,7 @@ function run() {
   store.roundPlayers.forEach((p) => (payload[p.id] = picks[p.id] ?? 50));
   store.resolveGame('number', { picks: payload });
 }
+const P = () => [props.game.p1, props.game.p2, props.game.p3];
 
 watch(() => store.lastEvent, (e) => {
   if (e && e.type === 'result' && e.gameKey === 'number') animate(e.payload.center, e.payload.ranks);
@@ -53,32 +49,42 @@ watch(() => store.lastEvent, (e) => {
 
 <template>
   <div class="flex w-full flex-col items-center pb-2 pt-2.5">
-    <div class="font-head flex h-[120px] w-[200px] items-center justify-center rounded-[22px] border-4 border-outline text-[72px] font-extrabold shadow-hard-lg"
-      :style="{ background: rolling ? '#2A1850' : '#FFD93D', color: rolling ? '#FFD93D' : '#2A1B4D' }">
-      {{ display ?? '?' }}
+    <div class="my-1.5 flex h-[160px] w-[160px] items-center justify-center rounded-full border-[5px] border-outline bg-white font-head text-[70px] font-extrabold shadow-hard-btn" style="color:#6D28D9">
+      {{ numShow != null ? numShow : '?' }}
     </div>
-    <span class="my-2 text-sm text-[#C9B6FF]">ผู้เล่นแต่ละคนเลือกเลข 1–100 — ใกล้เลขกลางสุดชนะ ไกลสุดโดนยก</span>
+    <span class="my-1 text-sm font-medium text-[#C9B6FF]">ผู้เล่นแต่ละคนเลือกเลข 1–100 — ใกล้เลขกลางสุดชนะ ไกลสุดโดนยก</span>
 
-    <div class="grid w-full max-w-2xl grid-cols-2 gap-2 sm:grid-cols-3">
-      <div v-for="p in store.roundPlayers" :key="p.id" class="flex items-center gap-2 rounded-[12px] bg-white/10 px-2 py-1.5">
-        <PlayerAvatar :player="p" :size="32" />
-        <span class="font-head flex-1 truncate text-sm font-bold text-white">{{ p.nick }}</span>
-        <input type="number" min="1" max="100" :value="picks[p.id] ?? 50" :disabled="rolling"
-          class="w-14 rounded-lg border-2 border-outline px-1 py-0.5 text-center text-outline" @input="picks[p.id] = +($event.target as HTMLInputElement).value" />
+    <div class="my-2 flex w-[430px] max-w-[94%] flex-col gap-2">
+      <div v-for="p in store.roundPlayers" :key="p.id" class="flex items-center gap-2.5 rounded-[14px] border-2 border-white/15 bg-white/[.06] px-3 py-1.5">
+        <PlayerAvatar :player="p" :size="40" />
+        <span class="font-head w-14 text-[15px] font-bold text-white">{{ p.nick }}</span>
+        <input type="range" min="1" max="100" :value="picks[p.id] ?? 50" :disabled="rolling" class="h-[7px] flex-1" style="accent-color:#FFD93D" @input="picks[p.id] = +($event.target as HTMLInputElement).value" />
+        <span class="font-head flex h-[38px] w-[46px] items-center justify-center rounded-[10px] border-[2.5px] border-outline bg-accent-yellow text-[18px] font-extrabold text-outline">{{ picks[p.id] ?? 50 }}</span>
       </div>
     </div>
 
-    <div v-if="ranks" class="mt-4 w-full max-w-md space-y-1">
-      <div v-for="(r, i) in ranks" :key="r.id" class="flex items-center gap-2 rounded-[10px] px-3 py-1.5"
-        :style="{ background: i === 0 ? '#34D399' : i === ranks.length - 1 ? '#FF6B6B' : 'rgba(255,255,255,.1)' }">
-        <span class="font-head w-6 font-extrabold text-white">{{ i + 1 }}</span>
-        <span class="font-head flex-1 font-bold text-white">{{ store.playerById(r.id)?.nick }}</span>
-        <span class="text-sm font-bold text-white">เลข {{ r.pick }} (ห่าง {{ r.dist }})</span>
+    <div v-if="ranks" class="my-3.5 flex w-[400px] max-w-[94%] flex-col gap-1.5 rounded-[18px] border-[3px] border-outline bg-white p-4 shadow-hard-btn" style="animation: pop .4s">
+      <div class="font-head text-center text-[17px] font-extrabold text-outline">เลขกลางคือ {{ center }} — ผลตามลำดับ</div>
+      <div v-for="(r, idx) in ranks" :key="r.id" class="flex items-center gap-2.5 rounded-[12px] border-2 px-2.5 py-1"
+        :style="{ background: idx === 0 ? '#FFF6DD' : idx === 1 ? '#EEF1F6' : idx === 2 ? '#FAE6CF' : idx === ranks.length - 1 ? '#FCEEF1' : '#F7F4FC', borderColor: idx === 0 ? '#2A1B4D' : '#EFE7FC' }">
+        <div class="flex w-6 justify-center">
+          <Icon v-if="idx < 3" name="medal" :size="19" :color="idx === 0 ? '#B8860B' : idx === 1 ? '#7A8190' : '#B5733A'" />
+          <span v-else class="font-head text-sm font-extrabold text-[#9a86bd]">{{ idx + 1 }}</span>
+        </div>
+        <PlayerAvatar :player="store.playerById(r.id)" :size="idx === 0 ? 60 : idx === 1 ? 50 : 42" />
+        <div class="flex flex-1 flex-col">
+          <span class="font-head text-[15px] font-bold text-outline">{{ store.playerById(r.id)?.nick }}</span>
+          <span class="text-[11px] font-semibold text-[#7a6a99]">ทาย {{ r.pick }} · ห่าง {{ r.dist }}</span>
+        </div>
+        <Icon v-if="idx === ranks.length - 1 && game.loserDrink" name="beer" :size="17" color="#D6336C" />
+        <span class="font-head text-[13px] font-extrabold" :style="{ color: idx === ranks.length - 1 && game.loserDrink ? '#D6336C' : '#0F9D58' }">
+          {{ idx < 3 ? '+' + P()[idx].toLocaleString() + '฿' : (idx === ranks.length - 1 && game.loserDrink ? 'โดนยก' : '-') }}
+        </span>
       </div>
     </div>
 
-    <button class="aofa-btn aofa-btn-pink mt-4 px-8 py-3.5 text-lg" :disabled="rolling" @click="run">
-      <Icon name="hash" :size="20" color="#fff" />{{ rolling ? 'กำลังสุ่ม…' : 'สุ่มเลขกลาง!' }}
+    <button class="aofa-btn aofa-btn-pink mt-[18px] px-[34px] py-3.5 text-[19px]" :disabled="rolling" @click="run">
+      {{ rolling ? 'กำลังสุ่ม...' : 'สุ่มเลขกลาง!' }}
     </button>
   </div>
 </template>
