@@ -1,0 +1,39 @@
+# Party AOFA — production API on a VPS (NestJS + Socket.IO) behind Caddy.
+# DB / Auth / Storage live on Supabase, so there is no Postgres container here.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Requires a .env in this directory (copy from .env.example and fill Supabase
+# values + CORS_ORIGIN=https://aofa.cloud + ADMIN_EMAILS).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: aofa-api
+    env_file: .env
+    environment:
+      API_PORT: 3001
+      NODE_ENV: production
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: aofa-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

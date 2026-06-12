@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.output
+**/.nuxt
+**/.nitro
+**/.cache
+.git
+.github
+**/*.log
+.env
+.env.*
+!.env.example
+design
+apps/web/.vercel
