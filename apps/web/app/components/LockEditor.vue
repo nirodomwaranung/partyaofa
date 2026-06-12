@@ -59,7 +59,7 @@ const val = computed(() => props.lock[lockKey.value]);
 
     <!-- player-target games: horse/race/bomb/mine -->
     <select v-else-if="['horse', 'race', 'bomb', 'mine'].includes(gameKey)" :value="val" class="w-full rounded-[12px] border-2 border-outline px-3 py-2 font-bold" @change="emit('set', ($event.target as HTMLSelectElement).value)">
-      <option v-for="p in store.roundPlayers" :key="p.id" :value="p.id">{{ p.nick }} — {{ p.name }}</option>
+      <option v-for="p in store.roundPlayers" :key="p.id" :value="p.id">{{ p.nick }}</option>
     </select>
 
     <p v-else class="text-[#9a86bd]">เกมนี้ไม่ต้องล็อกผล (ตัดสินจากเวลา/อินพุตจริง)</p>
