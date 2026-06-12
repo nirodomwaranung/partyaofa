@@ -78,7 +78,7 @@ const lock = computed(() => store.session?.lock ?? {});
           <div v-for="p in store.roundPlayers" :key="p.id" class="mt-1 flex items-center gap-2">
             <span class="font-head w-16 truncate text-sm font-bold">{{ p.nick }}</span>
             <input type="range" min="5" max="100" :value="store.session?.weights[p.id] ?? 50" class="flex-1"
-              @input="store.setWeight(p.id, +($event.target as HTMLInputElement).value)" />
+              @change="store.setWeight(p.id, +($event.target as HTMLInputElement).value)" />
             <span class="w-10 text-right text-sm font-bold">{{ store.session?.weights[p.id] ?? 50 }}%</span>
           </div>
         </div>

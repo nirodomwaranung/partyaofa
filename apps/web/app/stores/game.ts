@@ -114,19 +114,48 @@ export const useGameStore = defineStore('game', {
       return $socket;
     },
 
-    // ----- admin commands (emit to server) -----
-    setMode(mode: ResultMode) { this.socket()?.emit('admin:setMode', { mode }); },
-    setLock(gameKey: string, value: any) { this.socket()?.emit('admin:setLock', { gameKey, value }); },
-    setRound(playerIds: string[]) { this.socket()?.emit('admin:setRound', { playerIds }); },
+    // ----- admin commands -----
+    // Each updates local state OPTIMISTICALLY (instant UI), then emits. The
+    // server echo (state:sync) reconciles with the same values ~1 RTT later.
+    setMode(mode: ResultMode) {
+      if (this.session) this.session.resultMode = mode;
+      this.socket()?.emit('admin:setMode', { mode });
+    },
+    setLock(gameKey: string, value: any) {
+      if (this.session) this.session.lock = { ...this.session.lock, [gameKey]: value };
+      this.socket()?.emit('admin:setLock', { gameKey, value });
+    },
+    setRound(playerIds: string[]) {
+      if (this.session) {
+        this.session.roundIds = playerIds;
+        const w = { ...this.session.weights };
+        playerIds.forEach((id) => { if (!w[id]) w[id] = 50; });
+        this.session.weights = w;
+        if (!playerIds.includes(this.session.spotlightId ?? '')) this.session.spotlightId = playerIds[0] ?? null;
+      }
+      this.socket()?.emit('admin:setRound', { playerIds });
+    },
     toggleRound(id: string) {
       const ids = this.roundIds.includes(id) ? this.roundIds.filter((x) => x !== id) : [...this.roundIds, id];
       if (ids.length < 2) return;
       this.setRound(ids);
     },
-    setSpotlight(playerId: string) { this.socket()?.emit('admin:setSpotlight', { playerId }); },
-    setWeight(playerId: string, value: number) { this.socket()?.emit('admin:setWeight', { playerId, value }); },
-    setEventName(name: string) { this.socket()?.emit('admin:setEventName', { name }); },
-    startGame(gameKey: string) { this.socket()?.emit('admin:startGame', { gameKey }); },
+    setSpotlight(playerId: string) {
+      if (this.session) this.session.spotlightId = playerId;
+      this.socket()?.emit('admin:setSpotlight', { playerId });
+    },
+    setWeight(playerId: string, value: number) {
+      if (this.session) this.session.weights = { ...this.session.weights, [playerId]: value };
+      this.socket()?.emit('admin:setWeight', { playerId, value });
+    },
+    setEventName(name: string) {
+      if (this.session) this.session.eventName = name;
+      this.socket()?.emit('admin:setEventName', { name });
+    },
+    startGame(gameKey: string) {
+      if (this.session) this.session.activeGameKey = gameKey;
+      this.socket()?.emit('admin:startGame', { gameKey });
+    },
     resetGame(gameKey?: string) { this.socket()?.emit('admin:resetGame', { gameKey }); },
 
     /** Ask server to decide the outcome; resolves with the result payload. */

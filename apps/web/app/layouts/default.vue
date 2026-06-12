@@ -20,6 +20,16 @@ watch(() => store.lastEvent, (e) => {
   ctTimer = setTimeout(() => (confetti.value = false), 3200);
 });
 
+// TV follows the Game Master: when the remote launches a game (admin:startGame
+// → game:event 'start'), screens on /select or /play/* jump to that game.
+// Control pages (/admin, /remote, /players, /dashboard) are left alone.
+watch(() => store.lastEvent, (e) => {
+  if (!e || e.type !== 'start' || !e.gameKey) return;
+  const p = route.path;
+  const isTvPage = p === '/select' || p.startsWith('/play');
+  if (isTvPage && p !== `/play/${e.gameKey}`) navigateTo(`/play/${e.gameKey}`);
+});
+
 const nav = [
   { to: '/select', label: 'เลือกเกม', icon: 'gamepad-2' },
   { to: '/players', label: 'ผู้เล่น', icon: 'users' },

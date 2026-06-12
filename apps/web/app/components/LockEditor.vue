@@ -37,7 +37,7 @@ const val = computed(() => props.lock[lockKey.value]);
 
     <!-- number -->
     <div v-else-if="gameKey === 'number'" class="flex items-center gap-2">
-      <input type="range" min="1" max="100" :value="val ?? 50" class="flex-1" @input="emit('set', +($event.target as HTMLInputElement).value)" />
+      <input type="range" min="1" max="100" :value="val ?? 50" class="flex-1" @change="emit('set', +($event.target as HTMLInputElement).value)" />
       <span class="font-head w-10 text-right font-extrabold">{{ val ?? 50 }}</span>
     </div>
 
