@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SessionService } from '../session/session.service';
-import { WHEEL, CARD, CARD_LOCK_MAP, SLOT_POOL, Kind } from './constants';
+import { CARD, CARD_LOCK_MAP, SLOT_POOL, Kind, WHEEL_PALETTE, rewardKind, rewardAmount } from './constants';
 
 type Player = { id: string; nick: string };
 type Session = Awaited<ReturnType<SessionService['get']>>;
@@ -84,18 +84,34 @@ export class GameEngineService {
 
   // ---- WHEEL ----
   private async resolveWheel(s: Session) {
-    let idx: number;
-    if (s.resultMode === 'lock') idx = (s.lock as any).wheel ?? 0;
-    else if (s.resultMode === 'weight') {
-      const w = WHEEL.map((p) => (p.kind === 'jackpot' ? 1 : p.kind === 'cash' ? 5 : 3));
-      idx = this.weightedPick(w);
-    } else idx = this.rand(WHEEL.length);
+    // Slices come from the admin-managed reward list ("รางวัลในกล่อง").
+    const rewards = await this.prisma.reward.findMany({ orderBy: { order: 'asc' } });
+    if (!rewards.length) throw new BadRequestException('ยังไม่มีรางวัลในกล่อง — เพิ่มรางวัลก่อนหมุนวงล้อ');
 
-    const prize = WHEEL[idx];
+    let idx: number;
+    if (s.resultMode === 'lock') idx = Math.min(rewards.length - 1, Math.max(0, (s.lock as any).wheel ?? 0));
+    else if (s.resultMode === 'weight') {
+      const w = rewards.map((r) => {
+        const k = rewardKind(r);
+        return k === 'jackpot' ? 1 : k === 'drink' ? 3 : k === 'safe' ? 3 : 5;
+      });
+      idx = this.weightedPick(w);
+    } else idx = this.rand(rewards.length);
+
+    const reward = rewards[idx];
+    const kind = rewardKind(reward);
+    const amount = rewardAmount(reward, kind);
+    const color = WHEEL_PALETTE[idx % WHEEL_PALETTE.length];
+
     const id = s.spotlightId ?? undefined;
-    await this.applyPrizeToSolo(id, prize.kind, prize.amount);
-    await this.history('wheel', [{ playerId: id, outcome: prize.kind, amount: prize.amount, drink: prize.kind === 'drink' }]);
-    return { gameKey: 'wheel', index: idx, prize };
+    await this.applyPrizeToSolo(id, kind, amount);
+    await this.history('wheel', [{ playerId: id, outcome: kind, amount, drink: kind === 'drink' }]);
+    return {
+      gameKey: 'wheel',
+      index: idx,
+      count: rewards.length,
+      prize: { label: reward.label, icon: reward.icon, img: reward.img, color, kind, amount },
+    };
   }
 
   // ---- SLOT ----

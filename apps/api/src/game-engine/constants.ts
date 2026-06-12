@@ -41,3 +41,28 @@ export const CARD_LOCK_MAP: Record<string, { icon: string; label: string; kind: 
 };
 
 export const SLOT_POOL = ['coins', 'beer', 'sparkles', 'gift', 'gem', 'bell', 'star', 'cherry'];
+
+// Slice colors for the wheel — frontend uses the SAME array+index so colors match.
+export const WHEEL_PALETTE = [
+  '#6BCB77', '#4D96FF', '#FFD93D', '#FF9F45', '#C780FA', '#FF6B6B',
+  '#22D3EE', '#A0E548', '#F368A8', '#5CE1E6', '#FFB84C', '#34D399',
+];
+
+type RewardLike = { icon?: string | null; label?: string | null };
+
+/** Infer the outcome kind from an admin reward (no explicit kind field). */
+export function rewardKind(r: RewardLike): Kind {
+  const icon = (r.icon || '').toLowerCase();
+  const lbl = (r.label || '').toLowerCase();
+  if (icon === 'beer' || icon === 'wine' || /ยก|เหล้า|ดื่ม|drink/.test(lbl)) return 'drink';
+  if (icon === 'sparkles' || /jackpot|แจ็ก|แจ๊ก/.test(lbl)) return 'jackpot';
+  if (icon === 'shield-check' || /รอด|safe/.test(lbl)) return 'safe';
+  return 'cash';
+}
+
+/** Parse a money amount from the reward label (e.g. "เงิน 2,000฿" → 2000). */
+export function rewardAmount(r: RewardLike, kind: Kind): number {
+  if (kind === 'drink' || kind === 'safe') return 0;
+  const m = (r.label || '').replace(/,/g, '').match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}

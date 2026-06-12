@@ -6,16 +6,15 @@ const props = defineProps<{ gameKey: string; lock: Record<string, any> }>();
 const emit = defineEmits<{ set: [value: any] }>();
 const store = useGameStore();
 
-const WHEEL_LABELS = ['เงิน 500', 'Voucher', 'รอดตัว', 'ยก 1 ช็อต', 'เงิน 1,000', 'ยก 3 ช็อต', 'JACKPOT', 'รอดตัว 2'];
 const lockKey = computed(() => (['horse', 'race'].includes(props.gameKey) ? 'race' : props.gameKey === 'box' ? 'card' : props.gameKey));
 const val = computed(() => props.lock[lockKey.value]);
 </script>
 
 <template>
   <div class="text-sm">
-    <!-- wheel -->
+    <!-- wheel — slices come from the reward list -->
     <select v-if="gameKey === 'wheel'" :value="val" class="w-full rounded-[12px] border-2 border-outline px-3 py-2 font-bold" @change="emit('set', +($event.target as HTMLSelectElement).value)">
-      <option v-for="(l, i) in WHEEL_LABELS" :key="i" :value="i">ช่อง {{ i + 1 }} — {{ l }}</option>
+      <option v-for="(r, i) in store.rewards" :key="r.id" :value="i">ช่อง {{ i + 1 }} — {{ r.label }}</option>
     </select>
 
     <!-- slot -->
