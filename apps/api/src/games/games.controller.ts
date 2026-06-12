@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { GamesService } from './games.service';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Controller('games')
@@ -20,7 +20,7 @@ export class GamesController {
     return this.games.findOne(key);
   }
 
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Patch(':key')
   async update(@Param('key') key: string, @Body() patch: any) {
     const g = await this.games.update(key, patch);

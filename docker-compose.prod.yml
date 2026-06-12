@@ -1,12 +1,29 @@
-# Party AOFA — production API on a VPS (NestJS + Socket.IO) behind Caddy.
-# DB / Auth / Storage live on Supabase, so there is no Postgres container here.
+# Party AOFA — everything on one VPS: Postgres + API + Web behind Caddy.
+# No Vercel, no Supabase.
 #
 #   docker compose -f docker-compose.prod.yml up -d --build
+#   # first time only — seed the 10 games + sample players:
+#   docker compose -f docker-compose.prod.yml exec api npx prisma db seed
 #
-# Requires a .env in this directory (copy from .env.example and fill Supabase
-# values + CORS_ORIGIN=https://aofa.cloud + ADMIN_EMAILS).
+# Requires a .env in this directory (copy from .env.example and fill values).
 
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: aofa-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aofa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aofa_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-party_aofa}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aofa} -d ${POSTGRES_DB:-party_aofa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -16,6 +33,14 @@ services:
     environment:
       API_PORT: 3001
       NODE_ENV: production
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    # apply migrations, then start
+    command: sh -c "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/main.js"
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - "3001"
     restart: unless-stopped
@@ -50,5 +75,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  pgdata:
+  uploads:
   caddy_data:
   caddy_config:

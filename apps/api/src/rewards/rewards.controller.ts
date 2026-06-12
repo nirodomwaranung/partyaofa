@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Controller('rewards')
@@ -15,7 +15,7 @@ export class RewardsController {
     return this.rewards.findAll();
   }
 
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() body: any) {
     const r = await this.rewards.create(body);
@@ -23,7 +23,7 @@ export class RewardsController {
     return r;
   }
 
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: any) {
     const r = await this.rewards.update(id, body);
@@ -31,7 +31,7 @@ export class RewardsController {
     return r;
   }
 
-  @UseGuards(SupabaseAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: string) {
     const r = await this.rewards.remove(id);

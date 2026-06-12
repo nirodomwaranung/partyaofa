@@ -1,41 +1,40 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
- * Uploads images to Supabase Storage (Spec migration). Accepts a dataURL,
- * stores the bytes in the bucket, and returns a public URL.
- *
- * Falls back gracefully: if Supabase is not configured (local dev), the
- * original dataURL is returned unchanged so nothing breaks.
+ * Local-disk image storage. Accepts a dataURL, writes the bytes under an
+ * uploads volume, and returns a public URL served by the API at /uploads.
+ * Pass-through if the value is already a URL.
  */
 @Injectable()
 export class StorageService {
   private readonly log = new Logger('StorageService');
-  private readonly bucket = process.env.SUPABASE_STORAGE_BUCKET || 'avatars';
+  private readonly dir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+  // absolute base so images load from the API origin (e.g. https://api.aofa.cloud)
+  private readonly publicBase = process.env.PUBLIC_API_BASE || `http://localhost:${process.env.API_PORT || 3001}`;
 
-  constructor(private readonly supabase: SupabaseService) {
-    if (supabase.enabled) this.log.log(`Supabase Storage enabled (bucket: ${this.bucket})`);
-    else this.log.warn('Supabase Storage not configured — keeping images as dataURL');
+  constructor() {
+    fs.mkdirSync(this.dir, { recursive: true });
+    this.log.log(`Local storage at ${this.dir} → served at ${this.publicBase}/uploads`);
   }
 
   /** Convert an incoming dataURL to a stored public URL. Pass-through otherwise. */
   async maybeUpload(value: string | null | undefined, prefix: string): Promise<string | null | undefined> {
     if (!value || !value.startsWith('data:')) return value; // already a URL or empty
-    const client = this.supabase.admin;
-    if (!client) return value; // local fallback
-
-    const match = /^data:([^;]+);base64,(.*)$/s.exec(value);
-    if (!match) return value;
-    const [, mime, b64] = match;
+    const m = /^data:([^;]+);base64,(.*)$/s.exec(value);
+    if (!m) return value;
+    const [, mime, b64] = m;
     const ext = mime.split('/')[1]?.split('+')[0] || 'png';
-    const buf = Buffer.from(b64, 'base64');
-    const path = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-    const { error } = await client.storage.from(this.bucket).upload(path, buf, { contentType: mime, upsert: true });
-    if (error) {
-      this.log.error(`Upload failed: ${error.message}`);
+    const sub = path.join(this.dir, prefix);
+    try {
+      fs.mkdirSync(sub, { recursive: true });
+      const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      fs.writeFileSync(path.join(sub, name), Buffer.from(b64, 'base64'));
+      return `${this.publicBase}/uploads/${prefix}/${name}`;
+    } catch (e: any) {
+      this.log.error(`Upload failed: ${e.message}`);
       return value; // fall back to dataURL on error
     }
-    return client.storage.from(this.bucket).getPublicUrl(path).data.publicUrl;
   }
 }

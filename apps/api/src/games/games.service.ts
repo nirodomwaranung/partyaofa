@@ -22,7 +22,7 @@ export class GamesService {
     const allowed = ['name', 'type', 'icon', 'cover', 'p1', 'p2', 'p3', 'loserDrink', 'tigerImg', 'dragonImg'];
     const data: any = {};
     for (const k of allowed) if (k in patch) data[k] = patch[k];
-    // upload any image fields to Supabase Storage
+    // upload any image fields to local storage
     if (data.cover !== undefined) data.cover = await this.storage.maybeUpload(data.cover, `games/${key}`);
     if (data.tigerImg !== undefined) data.tigerImg = await this.storage.maybeUpload(data.tigerImg, `games/${key}`);
     if (data.dragonImg !== undefined) data.dragonImg = await this.storage.maybeUpload(data.dragonImg, `games/${key}`);

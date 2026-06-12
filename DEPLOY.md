@@ -1,74 +1,69 @@
-# 🚀 Deploy — Party AOFA
+# 🚀 Deploy — Party AOFA (all on one VPS)
+
+Everything runs on the VPS in Docker: **PostgreSQL + API (NestJS/Socket.IO) +
+Web (Nuxt SSR) + Caddy** (auto-HTTPS). No Vercel, no Supabase.
 
 ```
-DB / Auth / Storage → Supabase (already live)
-Web + API           → your choice below
+aofa.cloud / www.aofa.cloud → Caddy → web (Nuxt)
+api.aofa.cloud              → Caddy → api (NestJS + Socket.IO)
+                                      └→ db (PostgreSQL)  +  /uploads volume
 ```
 
-Two ways to serve the frontend. The API (NestJS + Socket.IO) always runs on the
-VPS because it needs persistent WebSocket connections.
-
----
-
-## ✅ Option A (recommended): everything on the VPS
-
-Web **and** API on one VPS, both behind Caddy (auto-HTTPS). Nothing to log into.
-
-### a. DNS (Cloudflare) — all → VPS IP, proxy **OFF** (grey cloud / "DNS only")
+## DNS (Cloudflare) — all A records → VPS, proxy OFF (grey cloud)
 | Type | Name | Value |
 |---|---|---|
-| A | `@` (aofa.cloud) | `<VPS IP>` |
-| A | `www` | `<VPS IP>` |
-| A | `api` | `<VPS IP>` |
+| A | `@` | `139.180.141.21` |
+| A | `www` | `139.180.141.21` |
+| A | `api` | `139.180.141.21` |
 
-> ปิด Cloudflare proxy (เมฆเทา) ทุกตัว เพื่อให้ Caddy ขอใบรับรอง Let's Encrypt ได้
+> ปิด Cloudflare proxy (เมฆเทา = DNS only) เพื่อให้ Caddy ขอใบรับรอง Let's Encrypt ได้
 
-### b. On the VPS
+## Deploy on the VPS
 ```bash
-cd ~/partyaofa
-git pull
+# prerequisites: Docker + Docker Compose, ports 80 & 443 open
+git clone -b movevps https://github.com/nirodomwaranung/partyaofa.git
+cd partyaofa
 
-# .env must include the web vars too (NUXT_PUBLIC_*). See deploy/.env.production.example
-nano .env
+cp .env.example .env
+nano .env          # set POSTGRES_PASSWORD, DATABASE_URL/DIRECT_URL (same password),
+                   # JWT_SECRET, ADMIN_PASSWORD, CORS_ORIGIN, PUBLIC_API_BASE
 
 docker compose -f docker-compose.prod.yml up -d --build
+
+# FIRST TIME ONLY — seed the 10 games + sample players:
+docker compose -f docker-compose.prod.yml exec api npx prisma db seed
 ```
-Caddy issues HTTPS for `aofa.cloud`, `www.aofa.cloud`, and `api.aofa.cloud`.
-Open **https://aofa.cloud** 🎉
+Caddy auto-issues HTTPS for all three hostnames. Open **https://aofa.cloud** 🎉
 
-Update later: `git pull && docker compose -f docker-compose.prod.yml up -d --build`
+Update later:
+```bash
+git pull && docker compose -f docker-compose.prod.yml up -d --build
+```
 
----
+## What's where
+- **DB**: `db` container (PostgreSQL 16), data in the `pgdata` volume. Migrations
+  run automatically on API start (`prisma migrate deploy`).
+- **Uploads**: avatars/covers/reward images saved to the `uploads` volume, served
+  by the API at `https://api.aofa.cloud/uploads/...`.
+- **Auth**: single Game Master password (`ADMIN_PASSWORD`) → JWT. Login at `/admin`.
 
-## Option B: Web on Vercel, API on VPS
-
-Keep the apex on Vercel (managed CDN/SSR). Requires a Vercel login.
-
-1. Vercel → **Add New → Project** → import `nirodomwaranung/partyaofa`
-2. **Root Directory:** `apps/web`
-3. **Environment Variables** (Production):
-   ```
-   NUXT_PUBLIC_API_BASE          = https://api.aofa.cloud
-   NUXT_PUBLIC_SOCKET_URL        = https://api.aofa.cloud
-   NUXT_PUBLIC_SUPABASE_URL      = https://madppayyvvhvvjlltoma.supabase.co
-   NUXT_PUBLIC_SUPABASE_ANON_KEY = <anon public key>
-   ```
-4. **Domains:** add `aofa.cloud` + `www.aofa.cloud`.
-5. On the VPS, run only the API (the `web` + its Caddy block aren't needed).
-
----
-
-## Wire-up checklist (both options)
-
-- [ ] VPS `.env` → `CORS_ORIGIN="https://aofa.cloud,https://www.aofa.cloud"`
-- [ ] VPS `.env` → `ADMIN_EMAILS="you@email.com"` (lock Game Master access)
-- [ ] VPS `.env` → `NUXT_PUBLIC_*` filled (Option A only)
-- [ ] Supabase → Authentication → URL Configuration → Site URL = `https://aofa.cloud`
-- [ ] Supabase → Authentication → Providers → Email → **disable public signup**
-- [ ] Create Game Master: `npm run create-admin -- you@email.com '<password>'`
-- [ ] Test: https://aofa.cloud → /admin → log in → start a game on /play/:key
+## .env keys (VPS)
+```
+POSTGRES_USER=aofa
+POSTGRES_PASSWORD=<strong-db-password>
+POSTGRES_DB=party_aofa
+DATABASE_URL="postgresql://aofa:<strong-db-password>@db:5432/party_aofa?schema=public"
+DIRECT_URL="postgresql://aofa:<strong-db-password>@db:5432/party_aofa?schema=public"
+API_PORT=3001
+JWT_SECRET=<long-random-string>
+ADMIN_PASSWORD=<game-master-password>
+CORS_ORIGIN="https://aofa.cloud,https://www.aofa.cloud"
+PUBLIC_API_BASE="https://api.aofa.cloud"
+NUXT_PUBLIC_API_BASE="https://api.aofa.cloud"
+NUXT_PUBLIC_SOCKET_URL="https://api.aofa.cloud"
+```
 
 ## Notes
-- Socket.IO needs a persistent server → the API is always on the VPS.
-- The VPS runs the app containers + Caddy; PostgreSQL is Supabase (no DB container).
-- Secrets live only in the VPS `.env` (and Vercel env vars for Option B) — never committed.
+- One VPS = lowest latency (DB is local to the API, no cross-region hop).
+- Secrets live only in the VPS `.env` (gitignored) — never committed.
+- Backups: `docker compose -f docker-compose.prod.yml exec db pg_dump -U aofa party_aofa > backup.sql`

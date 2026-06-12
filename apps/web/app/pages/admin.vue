@@ -31,7 +31,7 @@ function onRewardImg(id: string, e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
   const rd = new FileReader();
-  rd.onload = async () => { await patchReward(id, { img: rd.result }); }; // server uploads to Supabase Storage
+  rd.onload = async () => { await patchReward(id, { img: rd.result }); }; // server stores the image + returns a URL
   rd.readAsDataURL(file);
 }
 function clearRewardImg(id: string) { patchReward(id, { img: '' }); }

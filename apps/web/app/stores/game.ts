@@ -84,29 +84,8 @@ export const useGameStore = defineStore('game', {
       });
       $socket.on('game:event', (e: GameEvent) => (this.lastEvent = e));
 
-      // restore Supabase session (Game Master)
-      this.restoreSession();
-    },
-
-    async restoreSession() {
-      const { $supabase } = useNuxtApp() as any;
-      if (!$supabase) return;
-      const { data } = await $supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      if (token) {
-        localStorage.setItem('aofa_token', token);
-        this.adminAuthed = true;
-      }
-      // keep the bearer token fresh on refresh / sign-in / sign-out
-      $supabase.auth.onAuthStateChange((_e: string, session: any) => {
-        if (session?.access_token) {
-          localStorage.setItem('aofa_token', session.access_token);
-          this.adminAuthed = true;
-        } else {
-          localStorage.removeItem('aofa_token');
-          this.adminAuthed = false;
-        }
-      });
+      // restore admin session from stored JWT
+      if (localStorage.getItem('aofa_token')) this.adminAuthed = true;
     },
 
     socket() {
@@ -167,19 +146,19 @@ export const useGameStore = defineStore('game', {
       });
     },
 
-    /** Game Master sign-in via Supabase Auth (email + password). */
-    async login(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
-      const { $supabase } = useNuxtApp() as any;
-      if (!$supabase) return { ok: false, error: 'Supabase ไม่พร้อม' };
-      const { data, error } = await $supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error || !data?.session) return { ok: false, error: error?.message || 'เข้าสู่ระบบไม่สำเร็จ' };
-      localStorage.setItem('aofa_token', data.session.access_token);
-      this.adminAuthed = true;
-      return { ok: true };
+    /** Game Master sign-in with the shared admin password → JWT. */
+    async login(password: string): Promise<{ ok: boolean; error?: string }> {
+      try {
+        const api = useApi();
+        const res = await api.post<{ token: string }>('/auth/login', { password });
+        localStorage.setItem('aofa_token', res.token);
+        this.adminAuthed = true;
+        return { ok: true };
+      } catch (e: any) {
+        return { ok: false, error: e?.data?.message || 'รหัสผ่านไม่ถูกต้อง' };
+      }
     },
-    async logout() {
-      const { $supabase } = useNuxtApp() as any;
-      try { await $supabase?.auth.signOut(); } catch { /* ignore */ }
+    logout() {
       localStorage.removeItem('aofa_token');
       this.adminAuthed = false;
     },

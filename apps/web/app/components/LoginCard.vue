@@ -8,7 +8,6 @@ withDefaults(defineProps<{ title?: string; subtitle?: string }>(), {
 });
 
 const store = useGameStore();
-const email = ref('');
 const password = ref('');
 const error = ref('');
 const loading = ref(false);
@@ -17,10 +16,10 @@ async function submit() {
   if (loading.value) return;
   loading.value = true;
   error.value = '';
-  const res = await store.login(email.value, password.value);
+  const res = await store.login(password.value);
   loading.value = false;
   if (!res.ok) error.value = res.error || 'เข้าสู่ระบบไม่สำเร็จ';
-  else { email.value = ''; password.value = ''; }
+  else password.value = '';
 }
 </script>
 
@@ -33,8 +32,6 @@ async function submit() {
     <div class="font-head text-[22px] font-extrabold">{{ title }}</div>
     <div class="mb-4 mt-1 text-[13px] text-[#7a6a99]">{{ subtitle }}</div>
 
-    <input v-model="email" type="email" placeholder="อีเมล" autocomplete="username"
-      class="mb-2.5 w-full rounded-[13px] border-[2.5px] border-[#C9B6FF] px-3.5 py-3 outline-none" @keyup.enter="submit" />
     <input v-model="password" type="password" placeholder="รหัสผ่าน" autocomplete="current-password"
       class="w-full rounded-[13px] border-[2.5px] px-3.5 py-3 outline-none"
       :class="error ? 'border-accent-red' : 'border-[#C9B6FF]'" @keyup.enter="submit" />
