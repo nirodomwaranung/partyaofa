@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --outline: #2a1b4d;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: 'Mali', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #4c1d95;
+  color: #fff;
+}
+button {
+  font-family: inherit;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+
+/* ----- shared cartoon animations (ported from prototype) ----- */
+@keyframes confettifall {
+  to {
+    transform: translateY(115vh) rotate(900deg);
+  }
+}
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+@keyframes pop {
+  0% { transform: scale(0.55); opacity: 0; }
+  60% { transform: scale(1.07); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes wob {
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px) rotate(-4deg); }
+  75% { transform: translateX(3px) rotate(4deg); }
+}
+@keyframes boxbob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+/* ----- design system component classes ----- */
+@layer components {
+  .font-head { font-family: 'Baloo Thai 2', sans-serif; }
+
+  .aofa-card {
+    @apply bg-white border-[3px] border-outline rounded-[22px] shadow-hard;
+  }
+
+  .aofa-btn {
+    @apply font-head font-extrabold text-white border-[3px] border-outline shadow-hard-btn rounded-[16px] cursor-pointer transition-transform;
+  }
+  .aofa-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #2a1b4d;
+  }
+  .aofa-btn-pink { background: linear-gradient(180deg, #ff5c8a, #e03070); }
+  .aofa-btn-green { background: linear-gradient(180deg, #34d399, #10b981); }
+  .aofa-btn-yellow { background: linear-gradient(180deg, #ffe066, #ffc93c); color: #2a1b4d; }
+
+  .tv-screen {
+    background: linear-gradient(180deg, #3b2470, #2a1850);
+    border: 4px solid #2a1b4d;
+    border-radius: 30px;
+    box-shadow: 0 14px 0 rgba(0, 0, 0, 0.28), inset 0 0 0 4px rgba(255, 255, 255, 0.06);
+  }
+}
