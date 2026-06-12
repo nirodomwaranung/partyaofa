@@ -24,6 +24,17 @@ async function patchGame(key: string, patch: any) {
 async function addReward() { await api.post('/rewards', {}); }
 async function patchReward(id: string, patch: any) { await api.patch(`/rewards/${id}`, patch); }
 async function delReward(id: string) { await api.del(`/rewards/${id}`); }
+
+// reward icon choices + image upload
+const REWARD_ICONS = ['coins', 'banknote', 'ticket', 'sparkles', 'gem', 'beer', 'wine', 'gift', 'star', 'trophy', 'shield-check', 'party-popper', 'crown', 'medal', 'cherry', 'bell'];
+function onRewardImg(id: string, e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const rd = new FileReader();
+  rd.onload = async () => { await patchReward(id, { img: rd.result }); }; // server uploads to Supabase Storage
+  rd.readAsDataURL(file);
+}
+function clearRewardImg(id: string) { patchReward(id, { img: '' }); }
 async function resetStats() {
   if (confirm('รีเซ็ตสถิติผู้เล่นทั้งหมด?')) await api.post('/players/reset-stats');
 }
@@ -121,10 +132,23 @@ const lock = computed(() => store.session?.lock ?? {});
           <h3 class="font-head text-lg font-extrabold">รางวัลในกล่อง</h3>
           <button class="aofa-btn aofa-btn-green ml-auto px-3 py-1.5 text-sm" @click="addReward"><Icon name="plus" :size="15" color="#fff" /></button>
         </div>
+        <p class="mb-2 text-xs text-[#9a86bd]">แตะรูปเพื่ออัปโหลดภาพรางวัล · หรือเลือก icon จาก dropdown</p>
         <div v-for="r in store.rewards" :key="r.id" class="mb-2 flex items-center gap-2">
-          <Icon :name="r.icon" :size="18" color="#6D28D9" />
-          <input :value="r.label" class="flex-1 rounded-lg border-2 border-[#eee] px-2 py-1 text-sm" @change="patchReward(r.id, { label: ($event.target as HTMLInputElement).value })" />
-          <button class="text-accent-red" @click="delReward(r.id)"><Icon name="trash-2" :size="16" color="#FF6B6B" /></button>
+          <!-- image upload / icon thumbnail -->
+          <label class="relative flex-shrink-0 cursor-pointer" title="อัปโหลดรูปรางวัล">
+            <input type="file" accept="image/*" class="hidden" @change="onRewardImg(r.id, $event)" />
+            <div v-if="r.img" class="h-9 w-9 rounded-lg border-2 border-outline bg-cover bg-center" :style="{ backgroundImage: `url(${r.img})` }" />
+            <div v-else class="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-outline bg-[#FFF1D6]"><Icon :name="r.icon" :size="18" color="#B45309" /></div>
+            <span class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-[#6D28D9]"><Icon name="camera" :size="9" color="#fff" /></span>
+          </label>
+          <!-- clear image (revert to icon) -->
+          <button v-if="r.img" class="flex-shrink-0 text-[#9a86bd]" title="เอารูปออก ใช้ icon แทน" @click="clearRewardImg(r.id)"><Icon name="x" :size="14" color="#9a86bd" /></button>
+          <!-- icon picker (shown when no image) -->
+          <select v-else :value="r.icon" class="w-[78px] flex-shrink-0 rounded-lg border-2 border-[#eee] px-1 py-1 text-xs" @change="patchReward(r.id, { icon: ($event.target as HTMLSelectElement).value })">
+            <option v-for="ic in REWARD_ICONS" :key="ic" :value="ic">{{ ic }}</option>
+          </select>
+          <input :value="r.label" class="min-w-0 flex-1 rounded-lg border-2 border-[#eee] px-2 py-1 text-sm" @change="patchReward(r.id, { label: ($event.target as HTMLInputElement).value })" />
+          <button class="flex-shrink-0 text-accent-red" @click="delReward(r.id)"><Icon name="trash-2" :size="16" color="#FF6B6B" /></button>
         </div>
       </div>
     </div>
