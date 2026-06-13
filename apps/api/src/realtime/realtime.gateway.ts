@@ -173,6 +173,26 @@ export class RealtimeGateway implements OnGatewayConnection {
     return result;
   }
 
+  /**
+   * A player adds/removes themselves from the current round — PUBLIC (no admin
+   * auth) so anyone at the TV can join in. Toggles by default; `join` forces it.
+   */
+  @SubscribeMessage('player:joinRound')
+  async joinRound(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, join }: { playerId: string; join?: boolean }) {
+    if (!playerId) return;
+    const player = await this.prisma.player.findUnique({ where: { id: playerId } });
+    if (!player) return;
+    const s = await this.session.get();
+    const ids = (s.roundIds as string[]).slice();
+    const has = ids.includes(playerId);
+    const shouldJoin = join ?? !has;
+    if (shouldJoin && !has) ids.push(playerId);
+    else if (!shouldJoin && has) ids.splice(ids.indexOf(playerId), 1);
+    else return; // no change
+    await this.session.setRound(ids);
+    await this.broadcastState();
+  }
+
   /** Background music control (play/pause, volume, track, youtube). */
   @SubscribeMessage('admin:music')
   async onMusic(@ConnectedSocket() c: Socket, @MessageBody() patch: Partial<{ playing: boolean; volume: number; trackId: string | null; youtubeUrl: string | null }>) {

@@ -125,6 +125,24 @@ export const useGameStore = defineStore('game', {
       if (ids.length < 2) return;
       this.setRound(ids);
     },
+    /**
+     * A player adds/removes themselves from the current round — PUBLIC (no admin
+     * auth needed). Drives the "ร่วมเล่น" panel on the TV. Optimistic + broadcast.
+     */
+    joinRound(playerId: string, join?: boolean) {
+      const has = this.roundIds.includes(playerId);
+      const shouldJoin = join ?? !has;
+      if (shouldJoin === has) return;
+      if (this.session) {
+        const ids = shouldJoin ? [...this.roundIds, playerId] : this.roundIds.filter((x) => x !== playerId);
+        this.session.roundIds = ids;
+        const w = { ...this.session.weights };
+        if (shouldJoin && !w[playerId]) w[playerId] = 50;
+        this.session.weights = w;
+        if (!ids.includes(this.session.spotlightId ?? '')) this.session.spotlightId = ids[0] ?? null;
+      }
+      this.socket()?.emit('player:joinRound', { playerId, join: shouldJoin });
+    },
     setSpotlight(playerId: string) {
       if (this.session) this.session.spotlightId = playerId;
       this.socket()?.emit('admin:setSpotlight', { playerId });

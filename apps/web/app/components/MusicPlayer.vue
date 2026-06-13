@@ -38,8 +38,17 @@ function applyYouTube(url: string, m: { playing: boolean; volume: number }) {
     if (!yt) {
       yt = new w.YT.Player('aofa-yt', {
         height: '0', width: '0', videoId: id,
-        playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: id },
-        events: { onReady: () => { ytReady = true; pushYT(m); } },
+        playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: id, playsinline: 1 },
+        events: {
+          onReady: () => { ytReady = true; pushYT(m); },
+          // YT autoplay blocks are silent (playVideo never throws). Watch the
+          // real player state instead: once it actually plays, hide the prompt;
+          // if it's stuck unstarted/cued while we want it playing, prompt a tap.
+          onStateChange: (e: any) => {
+            const PLAYING = 1, BUFFERING = 3;
+            if (e.data === PLAYING || e.data === BUFFERING) needsGesture.value = false;
+          },
+        },
       });
     } else if (ytReady) {
       if (yt.getVideoData?.().video_id !== id) yt.loadVideoById(id);
@@ -50,8 +59,15 @@ function applyYouTube(url: string, m: { playing: boolean; volume: number }) {
 function pushYT(m: { playing: boolean; volume: number }) {
   if (!yt?.setVolume) return;
   yt.setVolume(Math.round(m.volume * 100));
-  if (m.playing) { try { yt.playVideo(); } catch { needsGesture.value = true; } }
-  else yt.pauseVideo();
+  if (!m.playing) { yt.pauseVideo(); return; }
+  yt.playVideo();
+  // playVideo() can't be caught when autoplay is blocked — verify it actually
+  // started a moment later, and surface the one-tap prompt if it didn't.
+  setTimeout(() => {
+    const PLAYING = 1, BUFFERING = 3;
+    const st = yt?.getPlayerState?.();
+    if (store.music.playing && st !== PLAYING && st !== BUFFERING) needsGesture.value = true;
+  }, 1200);
 }
 
 function apply() {
