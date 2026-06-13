@@ -28,6 +28,7 @@ export const useGameStore = defineStore('game', {
     games: [] as Game[],
     rewards: [] as Reward[],
     teams: {} as Record<string, string>,
+    mine: { active: false, victimId: null as string | null, turn: 0, revealed: {} as Record<number, 'safe' | 'bomb'>, loserId: null as string | null },
     adminAuthed: false,
     lastEvent: null as GameEvent | null,
     music: { playing: false, volume: 0.4, trackId: null, youtubeUrl: null } as MusicState,
@@ -89,6 +90,7 @@ export const useGameStore = defineStore('game', {
         this.rewards = s.rewards;
         if (s.music) this.music = s.music;
         if (s.teams) this.teams = s.teams;
+        if (s.mine) this.mine = s.mine;
       });
       $socket.on('game:event', (e: GameEvent) => (this.lastEvent = e));
 
@@ -166,6 +168,10 @@ export const useGameStore = defineStore('game', {
     setTeam(playerId: string, side: string) {
       this.teams = { ...this.teams, [playerId]: side };
       this.socket()?.emit('player:setTeam', { playerId, side });
+    },
+    /** Reveal a minefield tile — public; the server decides safe/bomb and echoes the board. */
+    revealMine(index: number) {
+      this.socket()?.emit('mine:reveal', { index });
     },
     resetGame(gameKey?: string) { this.socket()?.emit('admin:resetGame', { gameKey }); },
 

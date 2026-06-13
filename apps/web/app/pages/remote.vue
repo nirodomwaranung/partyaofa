@@ -50,6 +50,12 @@ function cycleTeam(id: string, i: number) {
   store.setTeam(id, cur === teamB.value ? teamA.value : teamB.value);
 }
 
+// ----- minefield (admin reveals tiles for players pointing at the TV) -----
+const mineCurrent = computed(() => {
+  const m = store.mine; const rp = store.roundPlayers;
+  return m.active && rp.length ? rp[m.turn % rp.length] ?? null : null;
+});
+
 function launch(key: string) {
   store.startGame(key);
 }
@@ -60,6 +66,9 @@ async function resolve() {
   }
   if (isSolo.value && !store.session?.spotlightId) {
     alert('เลือกผู้เล่น 1 คนก่อนออกผล'); return;
+  }
+  if (active.value === 'mine' && store.mine.active) {
+    alert('ทุ่งระเบิดกำลังเล่นอยู่ — เปิดช่องจนระเบิดก่อน แล้วค่อยเริ่มใหม่'); return;
   }
   const ack: any = await store.resolveGame(active.value);
   if (ack && ack.message && !ack.gameKey) alert(ack.message);
@@ -170,6 +179,29 @@ function reset() {
           </button>
         </div>
         <p v-else class="text-xs text-[#9a86bd]">เลือกผู้เข้าร่วมรอบด้านบนก่อน แล้วค่อยจัดทีม</p>
+      </div>
+
+      <!-- minefield — admin taps tiles on behalf of players at the TV -->
+      <div v-if="active === 'mine'" class="aofa-card p-4 text-outline">
+        <div class="mb-2 flex items-center gap-2">
+          <Icon name="bomb" :size="18" color="#6D28D9" />
+          <span class="text-sm font-bold">ทุ่งระเบิด — แตะช่องแทนผู้เล่น</span>
+        </div>
+        <div v-if="mineCurrent" class="mb-2 flex items-center gap-2 rounded-[12px] border-2 border-accent-yellow bg-[#FFF8E6] px-2.5 py-1">
+          <PlayerAvatar :player="mineCurrent" :size="28" />
+          <span class="font-head text-sm font-bold">ตาของ {{ mineCurrent.nick }}</span>
+        </div>
+        <p v-else-if="!store.mine.active" class="mb-2 text-xs text-[#9a86bd]">กด “ออกผล!” ด้านบนเพื่อเริ่มทุ่งระเบิดก่อน</p>
+        <div class="grid grid-cols-5 gap-1.5">
+          <button v-for="i in 25" :key="i"
+            class="flex aspect-square items-center justify-center rounded-[9px] border-2 border-outline disabled:opacity-100"
+            :style="store.mine.revealed[i - 1] === 'bomb' ? { background: '#E03030' } : store.mine.revealed[i - 1] === 'safe' ? { background: '#34D399' } : { background: '#EDE6F7' }"
+            :disabled="!store.mine.active || !!store.mine.revealed[i - 1]" @click="store.revealMine(i - 1)">
+            <Icon v-if="store.mine.revealed[i - 1] === 'bomb'" name="bomb" :size="16" color="#2A1B4D" :stroke="2.2" />
+            <Icon v-else-if="store.mine.revealed[i - 1] === 'safe'" name="check" :size="16" color="#0c3b2a" :stroke="3" />
+            <span v-else class="text-[11px] font-bold text-[#9a86bd]">{{ i }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- launcher -->

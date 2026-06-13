@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useGameStore } from '~/stores/game';
 import { useSounds } from '~/composables/useSounds';
 import type { Game } from '~/stores/game';
@@ -8,41 +8,28 @@ defineProps<{ game: Game; gameKey: string }>();
 const store = useGameStore();
 const sounds = useSounds();
 
-const active = ref(false);
-const victimId = ref<string | null>(null);
-const turn = ref(0);
-const revealed = reactive<Record<number, 'safe' | 'bomb'>>({});
-const loserId = ref<string | null>(null);
-
-const current = computed(() => (active.value ? store.roundPlayers[turn.value % Math.max(1, store.roundPlayers.length)] ?? null : null));
+// The board is shared server state (store.mine) so the TV and the remote walk
+// the same tiles — a player can point at the TV and the admin taps it on the
+// remote, or vice-versa.
+const active = computed(() => store.mine.active);
+const revealed = computed(() => store.mine.revealed || {});
+const loserId = computed(() => store.mine.loserId);
+const current = computed(() =>
+  active.value ? store.roundPlayers[store.mine.turn % Math.max(1, store.roundPlayers.length)] ?? null : null,
+);
 const loserP = computed(() => (loserId.value ? store.playerById(loserId.value) : null));
 
-function start(target: string) {
-  active.value = true; victimId.value = target; turn.value = 0; loserId.value = null;
-  Object.keys(revealed).forEach((k) => delete revealed[+k]);
-  sounds.play('click');
-}
-function clickTile(idx: number) {
-  if (!active.value || revealed[idx]) return;
-  const cur = current.value;
-  if (!cur) return;
-  if (cur.id === victimId.value) {
-    revealed[idx] = 'bomb'; active.value = false; loserId.value = cur.id;
-    sounds.play('explosion'); setTimeout(() => sounds.play('lose'), 200);
-  } else {
-    revealed[idx] = 'safe'; turn.value++; sounds.play('click');
-  }
-}
+function tile(idx: number) { if (active.value && !revealed.value[idx]) store.revealMine(idx); }
 function run() { if (!active.value) store.resolveGame('mine'); }
 
-watch(() => store.lastEvent, (e) => {
-  if (!e) return;
-  if (e.type === 'result' && e.gameKey === 'mine') start(e.payload.victimId);
-  else if (e.type === 'reset' && (e.gameKey === 'mine' || e.gameKey == null)) {
-    active.value = false; victimId.value = null; turn.value = 0; loserId.value = null;
-    Object.keys(revealed).forEach((k) => delete revealed[+k]);
-  }
-});
+// sound cues react to the shared board changing
+let prevCount = 0; let prevLoser: string | null = null;
+watch(() => store.mine, (m) => {
+  const cnt = Object.keys(m.revealed || {}).length;
+  if (m.loserId && m.loserId !== prevLoser) { sounds.play('explosion'); setTimeout(() => sounds.play('lose'), 200); }
+  else if (cnt > prevCount) sounds.play('click');
+  prevCount = cnt; prevLoser = m.loserId;
+}, { deep: true });
 </script>
 
 <template>
@@ -58,7 +45,7 @@ watch(() => store.lastEvent, (e) => {
         :style="revealed[i - 1] === 'bomb' ? { background: 'radial-gradient(circle,#FF8A8A,#E03030)', animation: 'pop .3s' }
           : revealed[i - 1] === 'safe' ? { background: '#34D399' }
           : { background: 'linear-gradient(180deg,#5847A0,#3A2A6E)', boxShadow: '0 4px 0 #1d1340' }"
-        :disabled="!active || !!revealed[i - 1]" @click="clickTile(i - 1)">
+        :disabled="!active || !!revealed[i - 1]" @click="tile(i - 1)">
         <Icon v-if="revealed[i - 1] === 'bomb'" name="bomb" :size="34" color="#2A1B4D" fill="#2A1B4D" :stroke="2" />
         <Icon v-else-if="revealed[i - 1] === 'safe'" name="check" :size="32" color="#0c3b2a" :stroke="3.2" />
         <Icon v-else name="help-circle" :size="22" color="rgba(255,255,255,.3)" :stroke="2" />

@@ -86,6 +86,15 @@ export class RealtimeGateway implements OnGatewayConnection {
   // launches. Shared so TV + remote pick the same teams.
   private teams: Record<string, string> = {};
 
+  // ---------- minefield board (in-memory) ----------
+  // The drink victim is decided at resolve time; the tile walk is cosmetic but
+  // shared here so the TV and the remote reveal the same board step by step.
+  private mine: {
+    active: boolean; victimId: string | null; turn: number;
+    revealed: Record<number, 'safe' | 'bomb'>; loserId: string | null;
+  } = { active: false, victimId: null, turn: 0, revealed: {}, loserId: null };
+  private resetMine() { this.mine = { active: false, victimId: null, turn: 0, revealed: {}, loserId: null }; }
+
   // ---------- state ----------
   private async fetchAll() {
     const [session, players, games, rewards] = await Promise.all([
@@ -94,7 +103,7 @@ export class RealtimeGateway implements OnGatewayConnection {
       this.prisma.game.findMany({ orderBy: { order: 'asc' } }),
       this.prisma.reward.findMany({ orderBy: { order: 'asc' } }),
     ]);
-    return { session, players, games, rewards, music: this.music, teams: this.teams };
+    return { session, players, games, rewards, music: this.music, teams: this.teams, mine: this.mine };
   }
 
   /** Admins see everything; viewers get lock + weights stripped. */
@@ -159,6 +168,7 @@ export class RealtimeGateway implements OnGatewayConnection {
   @SubscribeMessage('admin:startGame')
   async startGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey }: { gameKey: string }) {
     this.teams = {}; // fresh team assignment per game launch
+    this.resetMine();
     await this.session.setActiveGame(gameKey);
     await this.broadcastState();
     this.server.emit('game:event', { gameKey, type: 'start', payload: {} });
@@ -166,6 +176,7 @@ export class RealtimeGateway implements OnGatewayConnection {
 
   @SubscribeMessage('admin:resetGame')
   async resetGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey }: { gameKey?: string } = {}) {
+    if (gameKey === 'mine' || gameKey == null) { this.resetMine(); await this.broadcastState(); }
     this.server.emit('game:event', { gameKey: gameKey ?? null, type: 'reset', payload: {} });
   }
 
@@ -176,6 +187,10 @@ export class RealtimeGateway implements OnGatewayConnection {
     // whether the TV or the remote triggers); explicit inputs.sides override.
     const merged = { ...(inputs ?? {}), sides: { ...this.teams, ...(inputs?.sides ?? {}) } };
     const result = await this.engine.resolve(gameKey, merged);
+    // minefield: arm a fresh shared board the TV + remote walk together
+    if (gameKey === 'mine' && (result as any)?.victimId) {
+      this.mine = { active: true, victimId: (result as any).victimId, turn: 0, revealed: {}, loserId: null };
+    }
     this.server.emit('game:event', { gameKey, type: 'result', payload: result });
     await this.broadcastState();
     return result;
@@ -209,6 +224,29 @@ export class RealtimeGateway implements OnGatewayConnection {
   async setTeam(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, side }: { playerId: string; side: string }) {
     if (!playerId || !side) return;
     this.teams = { ...this.teams, [playerId]: side };
+    await this.broadcastState();
+  }
+
+  /**
+   * Reveal a minefield tile — PUBLIC so a player at the TV or the admin on the
+   * remote can step the board. The drink victim was already decided at resolve;
+   * here we just walk turns: the victim's tile is the bomb, everyone else safe.
+   */
+  @SubscribeMessage('mine:reveal')
+  async mineReveal(@ConnectedSocket() _c: Socket, @MessageBody() { index }: { index: number }) {
+    if (!this.mine.active || index == null || this.mine.revealed[index]) return;
+    const s = await this.session.get();
+    const ids = s.roundIds as string[];
+    if (!ids.length) return;
+    const curId = ids[this.mine.turn % ids.length];
+    const revealed = { ...this.mine.revealed };
+    if (curId === this.mine.victimId) {
+      revealed[index] = 'bomb';
+      this.mine = { ...this.mine, revealed, loserId: curId, active: false };
+    } else {
+      revealed[index] = 'safe';
+      this.mine = { ...this.mine, revealed, turn: this.mine.turn + 1 };
+    }
     await this.broadcastState();
   }
 
