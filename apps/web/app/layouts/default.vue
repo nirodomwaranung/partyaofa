@@ -1,28 +1,13 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useGameStore } from '~/stores/game';
 
 const store = useGameStore();
 const route = useRoute();
 
-// TV follows the Game Master. Two triggers for reliability:
-//  1) the transient game:event 'start' (fires the moment the remote launches) —
-//     bounces /select or /play/* to the chosen game.
-//  2) session.activeGameKey changing (arrives via state:sync) — keeps a screen
-//     already on /play/* in sync even if it missed the 'start' event (reconnect).
-// Control pages (/admin, /remote, /players, /dashboard) are never moved.
-function followTo(gameKey: string | null | undefined, fromSelect: boolean) {
-  if (!gameKey) return;
-  const p = route.path;
-  const onPlay = p.startsWith('/play');
-  const onSelect = p === '/select';
-  if ((onPlay || (fromSelect && onSelect)) && p !== `/play/${gameKey}`) navigateTo(`/play/${gameKey}`);
-}
-watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'start') followTo(e.gameKey, true);
-});
-watch(() => store.session?.activeGameKey, (k) => followTo(k, false));
+// Note: the big-screen "/tv" page auto-follows the active game. Regular
+// /play/:gameKey pages stay on the game in the URL (deliberate navigation).
 
 const nav = [
   { to: '/select', label: 'เลือกเกม', icon: 'gamepad-2' },
