@@ -9,7 +9,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
 COPY apps/api/package.json apps/api/
-RUN npm ci
+# npm install (not ci) so platform-specific native deps (oxc-parser, esbuild)
+# resolve for linux even though the lockfile was generated on macOS.
+RUN npm install --no-audit --no-fund
 
 COPY apps/web apps/web
 RUN npm run build --workspace apps/web
