@@ -22,6 +22,7 @@ const stops = computed(() => slices.value.map((s, i) => `${s.color} ${i * SEG.va
 const angle = ref(0);
 const spinning = ref(false);
 const result = ref<any>(null);
+const history = ref<any[]>([]);
 let raf = 0;
 
 function spinTo(idx: number, prize: any) {
@@ -44,6 +45,10 @@ function spinTo(idx: number, prize: any) {
       angle.value = end;
       spinning.value = false;
       result.value = prize;
+      // record this spin into the round's history
+      const sp = store.spotlight;
+      const win = prize.kind === 'cash' || prize.kind === 'jackpot';
+      history.value = [{ id: sp?.id, nick: sp?.nick ?? '', label: prize.label, icon: prize.icon, img: prize.img, win, drink: prize.kind === 'drink' }, ...history.value].slice(0, 12);
       if (prize.kind === 'drink') sounds.play('lose');
       else {
         sounds.play(prize.kind === 'jackpot' ? 'jackpot' : 'winner');
@@ -119,5 +124,23 @@ onBeforeUnmount(() => cancelAnimationFrame(raf));
     <button class="aofa-btn aofa-btn-pink mt-[18px] px-[34px] py-3.5 text-[19px]" :disabled="spinning || !slices.length" @click="run">
       {{ spinning ? 'กำลังหมุน...' : 'หมุนวงล้อ!' }}
     </button>
+
+    <!-- spin history for this round -->
+    <div v-if="history.length" class="mx-auto mt-4 w-[420px] max-w-[94%] rounded-[18px] border-[3px] border-outline bg-white p-3.5 shadow-hard-btn">
+      <div class="font-head mb-2 flex items-center gap-1.5 text-[15px] font-extrabold text-outline"><Icon name="history" :size="16" color="#2A1B4D" />ประวัติการหมุน</div>
+      <div class="flex flex-col gap-1.5">
+        <div v-for="(h, k) in history" :key="k" class="flex items-center gap-2.5 rounded-[11px] border-2 px-2.5 py-1"
+          :style="{ background: h.win ? '#E9F9F1' : h.drink ? '#FCEEF1' : '#F4F1FA', borderColor: h.win ? '#B6ECCF' : h.drink ? '#F6C6D2' : '#E7DEF5' }">
+          <PlayerAvatar :player="store.playerById(h.id)" :size="30" />
+          <span class="font-head flex-1 text-sm font-bold text-outline">{{ h.nick }}</span>
+          <div v-if="h.img" class="h-5 w-5 rounded border border-outline bg-cover bg-center" :style="{ backgroundImage: `url(${h.img})` }" />
+          <Icon v-else :name="h.icon" :size="15" :color="h.win ? '#0F9D58' : h.drink ? '#D6336C' : '#7a6a99'" />
+          <span class="text-xs font-semibold text-[#7a6a99]">{{ h.label }}</span>
+          <span class="font-head flex items-center gap-1 text-xs font-extrabold" :style="{ color: h.win ? '#0F9D58' : h.drink ? '#D6336C' : '#9a86bd' }">
+            <Icon v-if="h.win" name="trophy" :size="14" color="#0F9D58" /><Icon v-else-if="h.drink" name="beer" :size="14" color="#D6336C" />{{ h.win ? 'ได้รางวัล' : h.drink ? 'โดนยก' : 'รอด' }}
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
