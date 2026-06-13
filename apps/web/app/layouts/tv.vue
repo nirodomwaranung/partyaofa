@@ -10,5 +10,6 @@
       style="background: radial-gradient(circle, #22d3ee, transparent 70%)" />
     <slot />
     <Celebration />
+    <MusicPlayer />
   </div>
 </template>

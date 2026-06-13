@@ -18,6 +18,7 @@ export interface Session {
   weights: Record<string, number>; lock: Record<string, any>; activeGameKey: string | null;
 }
 export interface GameEvent { gameKey: string | null; type: 'start' | 'result' | 'reset'; payload: any; }
+export interface MusicState { playing: boolean; volume: number; trackId: string | null; youtubeUrl: string | null; }
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -28,6 +29,7 @@ export const useGameStore = defineStore('game', {
     rewards: [] as Reward[],
     adminAuthed: false,
     lastEvent: null as GameEvent | null,
+    music: { playing: false, volume: 0.4, trackId: null, youtubeUrl: null } as MusicState,
     _bound: false,
   }),
 
@@ -81,6 +83,7 @@ export const useGameStore = defineStore('game', {
         this.players = s.players;
         this.games = s.games;
         this.rewards = s.rewards;
+        if (s.music) this.music = s.music;
       });
       $socket.on('game:event', (e: GameEvent) => (this.lastEvent = e));
 
@@ -136,6 +139,12 @@ export const useGameStore = defineStore('game', {
       this.socket()?.emit('admin:startGame', { gameKey });
     },
     resetGame(gameKey?: string) { this.socket()?.emit('admin:resetGame', { gameKey }); },
+
+    /** Background music control (admin only). Optimistic + broadcast. */
+    setMusic(patch: Partial<MusicState>) {
+      this.music = { ...this.music, ...patch };
+      this.socket()?.emit('admin:music', patch);
+    },
 
     /** Ask server to decide the outcome; resolves with the result payload. */
     resolveGame(gameKey: string, inputs: Record<string, any> = {}): Promise<any> {

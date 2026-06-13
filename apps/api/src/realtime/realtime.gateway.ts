@@ -73,6 +73,14 @@ export class RealtimeGateway implements OnGatewayConnection {
     client.emit('state:sync', this.view(await this.fetchAll(), false));
   }
 
+  // ---------- background music (in-memory, broadcast to all) ----------
+  private music: { playing: boolean; volume: number; trackId: string | null; youtubeUrl: string | null } = {
+    playing: false,
+    volume: 0.4,
+    trackId: null,
+    youtubeUrl: null,
+  };
+
   // ---------- state ----------
   private async fetchAll() {
     const [session, players, games, rewards] = await Promise.all([
@@ -81,7 +89,7 @@ export class RealtimeGateway implements OnGatewayConnection {
       this.prisma.game.findMany({ orderBy: { order: 'asc' } }),
       this.prisma.reward.findMany({ orderBy: { order: 'asc' } }),
     ]);
-    return { session, players, games, rewards };
+    return { session, players, games, rewards, music: this.music };
   }
 
   /** Admins see everything; viewers get lock + weights stripped. */
@@ -163,5 +171,16 @@ export class RealtimeGateway implements OnGatewayConnection {
     this.server.emit('game:event', { gameKey, type: 'result', payload: result });
     await this.broadcastState();
     return result;
+  }
+
+  /** Background music control (play/pause, volume, track, youtube). */
+  @SubscribeMessage('admin:music')
+  async onMusic(@ConnectedSocket() c: Socket, @MessageBody() patch: Partial<{ playing: boolean; volume: number; trackId: string | null; youtubeUrl: string | null }>) {
+    if (!this.isAdmin(c)) return;
+    if (typeof patch.playing === 'boolean') this.music.playing = patch.playing;
+    if (typeof patch.volume === 'number') this.music.volume = Math.max(0, Math.min(1, patch.volume));
+    if ('trackId' in patch) this.music.trackId = patch.trackId ?? null;
+    if ('youtubeUrl' in patch) this.music.youtubeUrl = patch.youtubeUrl ?? null;
+    await this.broadcastState();
   }
 }

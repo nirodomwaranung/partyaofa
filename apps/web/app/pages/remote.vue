@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useGameStore } from '~/stores/game';
+import { MUSIC_TRACKS } from '~/utils/musicTracks';
 
 const store = useGameStore();
+const music = computed(() => store.music);
+const ytUrl = ref('');
+
+function toggleMusic() { store.setMusic({ playing: !store.music.playing }); }
+function playTrack(id: string) {
+  store.setMusic({ trackId: id, youtubeUrl: id === 'youtube' ? ytUrl.value.trim() : null, playing: true });
+}
 
 const modes = [
   { key: 'random', label: 'สุ่ม', icon: 'dices' },
@@ -73,6 +81,38 @@ function reset() {
             <Icon :name="g.icon" :size="18" color="#6D28D9" />
             <span class="font-head truncate text-sm font-bold">{{ g.name }}</span>
           </button>
+        </div>
+      </div>
+
+      <!-- background music -->
+      <div class="aofa-card p-4 text-outline">
+        <div class="mb-2 flex items-center gap-2">
+          <Icon name="music" :size="18" color="#6D28D9" />
+          <span class="text-sm font-bold">เพลงพื้นหลัง</span>
+          <span class="ml-auto text-[11px] text-[#9a86bd]">เล่นบนจอใหญ่ /tv</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="aofa-btn px-4 py-2.5 text-sm" :class="music.playing ? 'aofa-btn-pink' : 'aofa-btn-green'" @click="toggleMusic">
+            <Icon :name="music.playing ? 'pause' : 'play'" :size="16" color="#fff" />{{ music.playing ? 'หยุด' : 'เล่น' }}
+          </button>
+          <Icon name="volume-2" :size="16" color="#6D28D9" />
+          <input type="range" min="0" max="100" :value="Math.round(music.volume * 100)" class="min-w-0 flex-1"
+            @change="store.setMusic({ volume: +($event.target as HTMLInputElement).value / 100 })" />
+          <span class="w-9 text-right text-sm font-bold">{{ Math.round(music.volume * 100) }}%</span>
+        </div>
+        <div class="mt-3 grid grid-cols-3 gap-2">
+          <button v-for="t in MUSIC_TRACKS" :key="t.id" class="rounded-[12px] border-2 px-1 py-2 text-xs font-bold"
+            :class="music.trackId === t.id ? 'border-accent-yellow bg-[#FFF8E6]' : 'border-[#eee]'" @click="playTrack(t.id)">{{ t.name }}</button>
+        </div>
+        <div class="mt-3">
+          <div class="mb-1 text-xs text-[#9a86bd]">หรือเล่นจาก YouTube</div>
+          <div class="flex gap-2">
+            <input v-model="ytUrl" placeholder="วางลิงก์ YouTube" class="min-w-0 flex-1 rounded-[10px] border-2 border-[#eee] px-2 py-2 text-sm" />
+            <button class="aofa-btn aofa-btn-pink px-3 py-2 text-sm" :disabled="!ytUrl.trim()" @click="playTrack('youtube')">
+              <Icon name="youtube" :size="16" color="#fff" />เล่น
+            </button>
+          </div>
+          <div v-if="music.trackId === 'youtube' && music.youtubeUrl" class="mt-1 truncate text-xs font-semibold text-[#0F9D58]">▶ {{ music.youtubeUrl }}</div>
         </div>
       </div>
     </div>
