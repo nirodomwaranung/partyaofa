@@ -39,10 +39,13 @@ function announce() {
 const sorted = computed(() => Object.keys(times).sort((a, b) => times[a] - times[b]));
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === 'yk1') {
+  if (!e) return;
+  if (e.type === 'result' && e.gameKey === 'yk1') {
     done.value = true; sounds.play('winner');
     const w = e.payload?.ranks?.[0];
     if (w) store.celebrate(`${store.playerById(w.id)?.nick || ''} เร็วสุด!`, '⏱️ 🏆');
+  } else if (e.type === 'reset' && (e.gameKey === 'yk1' || e.gameKey == null)) {
+    clearInterval(tick); swRunning.value = false; ms.value = 0; done.value = false;
   }
 });
 onBeforeUnmount(() => clearInterval(tick));

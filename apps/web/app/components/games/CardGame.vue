@@ -47,7 +47,9 @@ const resultText = computed(() => {
 });
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === props.gameKey) reveal(e.payload.index, e.payload.reward);
+  if (!e) return;
+  if (e.type === 'result' && e.gameKey === props.gameKey) reveal(e.payload.index, e.payload.reward);
+  else if (e.type === 'reset' && (e.gameKey === props.gameKey || e.gameKey == null)) deal();
 });
 onMounted(deal);
 </script>

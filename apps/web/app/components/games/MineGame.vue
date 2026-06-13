@@ -36,7 +36,12 @@ function clickTile(idx: number) {
 function run() { if (!active.value) store.resolveGame('mine'); }
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === 'mine') start(e.payload.victimId);
+  if (!e) return;
+  if (e.type === 'result' && e.gameKey === 'mine') start(e.payload.victimId);
+  else if (e.type === 'reset' && (e.gameKey === 'mine' || e.gameKey == null)) {
+    active.value = false; victimId.value = null; turn.value = 0; loserId.value = null;
+    Object.keys(revealed).forEach((k) => delete revealed[+k]);
+  }
 });
 </script>
 

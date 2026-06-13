@@ -63,7 +63,12 @@ const P = computed(() => ({ p1: props.game.p1, p2: props.game.p2, p3: props.game
 const laneTop = (i: number) => ((i + 0.5) / laneCount.value) * 100;
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && (e.gameKey === 'horse' || e.gameKey === 'race')) animate(e.payload.winnerId, e.payload.ranks);
+  if (!e) return;
+  if (e.type === 'result' && (e.gameKey === 'horse' || e.gameKey === 'race')) animate(e.payload.winnerId, e.payload.ranks);
+  else if (e.type === 'reset' && (e.gameKey === 'horse' || e.gameKey === 'race' || e.gameKey == null)) {
+    cancelAnimationFrame(raf); running.value = false; done.value = false; ranks.value = null; winnerId.value = null;
+    round.value.forEach((p) => (pos[p.id] = 2));
+  }
 });
 onBeforeUnmount(() => cancelAnimationFrame(raf));
 </script>

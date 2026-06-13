@@ -44,7 +44,11 @@ function run() {
 const P = () => [props.game.p1, props.game.p2, props.game.p3];
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === 'number') animate(e.payload.center, e.payload.ranks);
+  if (!e) return;
+  if (e.type === 'result' && e.gameKey === 'number') animate(e.payload.center, e.payload.ranks);
+  else if (e.type === 'reset' && (e.gameKey === 'number' || e.gameKey == null)) {
+    clearTimeout(timer); rolling.value = false; ranks.value = null; center.value = null;
+  }
 });
 </script>
 

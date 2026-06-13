@@ -40,7 +40,11 @@ function reset() { clearInterval(pass); active.value = false; exploded.value = f
 const loserP = () => (loserId.value ? store.playerById(loserId.value) : null);
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === 'bomb') animate(e.payload.loserId);
+  if (!e) return;
+  if (e.type === 'result' && e.gameKey === 'bomb') animate(e.payload.loserId);
+  else if (e.type === 'reset' && (e.gameKey === 'bomb' || e.gameKey == null)) {
+    clearInterval(pass); active.value = false; exploded.value = false; loserId.value = null; holder.value = 0;
+  }
 });
 onBeforeUnmount(() => clearInterval(pass));
 </script>

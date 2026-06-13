@@ -217,9 +217,22 @@ export class GameEngineService {
 
   // ---- CARD / BOX ----
   private async resolveCard(s: Session, gameKey: string, index: number) {
-    let reward;
-    if (s.resultMode === 'lock') reward = CARD_LOCK_MAP[(s.lock as any).card] ?? CARD[this.rand(CARD.length)];
-    else reward = CARD[this.rand(CARD.length)];
+    // Prizes come from the admin-managed reward list ("รางวัลในกล่อง") — same
+    // source as the wheel — so "เปิดเลยอย่าคิดเยอะ" reflects the settings.
+    // Falls back to the built-in CARD table only if no rewards are configured.
+    const rewards = await this.prisma.reward.findMany({ orderBy: { order: 'asc' } });
+    let reward: { icon: string; label: string; img?: string | null; kind: Kind; amount?: number };
+    if (rewards.length) {
+      let idx: number;
+      if (s.resultMode === 'lock' && typeof (s.lock as any).card === 'number') {
+        idx = Math.min(rewards.length - 1, Math.max(0, (s.lock as any).card));
+      } else idx = this.rand(rewards.length);
+      const r = rewards[idx];
+      const kind = rewardKind(r);
+      reward = { icon: r.icon, label: r.label, img: r.img, kind, amount: rewardAmount(r, kind) };
+    } else if (s.resultMode === 'lock') {
+      reward = CARD_LOCK_MAP[(s.lock as any).card] ?? CARD[this.rand(CARD.length)];
+    } else reward = CARD[this.rand(CARD.length)];
 
     const id = s.spotlightId ?? undefined;
     await this.applyPrizeToSolo(id, reward.kind, reward.amount);

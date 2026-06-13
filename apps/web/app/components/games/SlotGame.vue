@@ -62,7 +62,12 @@ function run() {
 const SYMC: Record<string, string> = { coins: '#FFB300', beer: '#FF9F45', sparkles: '#C780FA', gift: '#FF7A59', gem: '#22D3EE', bell: '#FFB84C', star: '#FFD93D', cherry: '#FF6B6B' };
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === 'slot') animate(e.payload.syms, e.payload.result);
+  if (!e) return;
+  if (e.type === 'result' && e.gameKey === 'slot') animate(e.payload.syms, e.payload.result);
+  else if (e.type === 'reset' && (e.gameKey === 'slot' || e.gameKey == null)) {
+    spinning.value = false; result.value = null;
+    strips.value = [[], [], []]; posY.value = [0, 0, 0]; trans.value = ['none', 'none', 'none'];
+  }
 });
 </script>
 

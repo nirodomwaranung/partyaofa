@@ -97,7 +97,13 @@ function run() {
   store.resolveGame(props.gameKey, { sides: { ...sides } });
 }
 watch(() => store.lastEvent, (e) => {
-  if (!e || e.type !== 'result' || e.gameKey !== props.gameKey) return;
+  if (!e) return;
+  if (e.type === 'reset' && (e.gameKey === props.gameKey || e.gameKey == null)) {
+    clearInterval(loop); clearTimeout(loop); fighting.value = false; winner.value = null;
+    attacker.value = null; skill.value = null; tdShow.value = null; hp.blue = 100; hp.red = 100; timeLeft.value = 20;
+    return;
+  }
+  if (e.type !== 'result' || e.gameKey !== props.gameKey) return;
   if (isBoxing.value) animateBoxing(e.payload.winner, e.payload.sides);
   else animateTD(e.payload.winner, e.payload.sides);
 });

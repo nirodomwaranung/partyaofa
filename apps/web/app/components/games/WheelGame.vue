@@ -66,7 +66,11 @@ const labelSize = computed(() => (slices.value.length > 10 ? 9 : slices.value.le
 const iconSize = computed(() => (slices.value.length > 10 ? 18 : 22));
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === 'wheel') spinTo(e.payload.index, e.payload.prize);
+  if (!e) return;
+  if (e.type === 'result' && e.gameKey === 'wheel') spinTo(e.payload.index, e.payload.prize);
+  else if (e.type === 'reset' && (e.gameKey === 'wheel' || e.gameKey == null)) {
+    cancelAnimationFrame(raf); spinning.value = false; result.value = null;
+  }
 });
 onBeforeUnmount(() => cancelAnimationFrame(raf));
 </script>

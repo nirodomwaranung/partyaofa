@@ -21,12 +21,30 @@ const modes = [
 const active = computed(() => store.session?.activeGameKey ?? null);
 const activeGame = computed(() => (active.value ? store.gameByKey(active.value) : null));
 
+// Solo games resolve for ONE spotlighted player; the rest pick a round (≥2).
+const SOLO = ['wheel', 'slot', 'box', 'card'];
+const NEED2 = ['bomb', 'horse', 'race', 'boxing', 'td', 'yk1'];
+const isSolo = computed(() => SOLO.includes(active.value || ''));
+const isPicked = (id: string) =>
+  isSolo.value ? store.session?.spotlightId === id : store.roundIds.includes(id);
+function pickPlayer(id: string) {
+  if (isSolo.value) store.setSpotlight(id);
+  else store.toggleRound(id);
+}
+
 function launch(key: string) {
   store.startGame(key);
 }
 async function resolve() {
   if (!active.value) return;
-  await store.resolveGame(active.value);
+  if (!isSolo.value && NEED2.includes(active.value) && store.roundIds.length < 2) {
+    alert('เลือกผู้เล่นอย่างน้อย 2 คนก่อนออกผล'); return;
+  }
+  if (isSolo.value && !store.session?.spotlightId) {
+    alert('เลือกผู้เล่น 1 คนก่อนออกผล'); return;
+  }
+  const ack: any = await store.resolveGame(active.value);
+  if (ack && ack.message && !ack.gameKey) alert(ack.message);
 }
 function reset() {
   if (active.value) store.resetGame(active.value);
@@ -67,6 +85,27 @@ function reset() {
             <Icon name="zap" :size="22" color="#fff" />ออกผล!
           </button>
           <button class="aofa-btn aofa-btn-yellow px-4" @click="reset"><Icon name="rotate-ccw" :size="20" color="#2A1B4D" /></button>
+        </div>
+      </div>
+
+      <!-- player selection (who plays this round) -->
+      <div v-if="active" class="aofa-card p-4 text-outline">
+        <div class="mb-2 flex items-center gap-2">
+          <Icon name="users" :size="18" color="#6D28D9" />
+          <span class="text-sm font-bold">{{ isSolo ? 'ใครเล่นตานี้ (เลือก 1 คน)' : 'ผู้เล่นรอบนี้ (เลือกได้หลายคน)' }}</span>
+          <span class="ml-auto text-[11px] font-semibold text-[#9a86bd]">{{ isSolo ? (store.spotlight?.nick || 'ยังไม่เลือก') : store.roundIds.length + ' คน' }}</span>
+        </div>
+        <div class="grid grid-cols-4 gap-2">
+          <button v-for="p in store.players" :key="p.id"
+            class="relative flex flex-col items-center gap-1 rounded-[12px] border-2 px-1 py-2 transition"
+            :class="isPicked(p.id) ? 'border-accent-yellow bg-[#FFF8E6]' : 'border-[#eee] opacity-70'"
+            @click="pickPlayer(p.id)">
+            <span v-if="isPicked(p.id)" class="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent-yellow">
+              <Icon name="check" :size="10" color="#2A1B4D" :stroke="3" />
+            </span>
+            <PlayerAvatar :player="p" :size="40" />
+            <span class="font-head w-full truncate text-center text-xs font-bold">{{ p.nick || p.name }}</span>
+          </button>
         </div>
       </div>
 

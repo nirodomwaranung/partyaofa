@@ -9,7 +9,7 @@ defineProps<{ hint?: string }>();
     <span class="text-[13px] font-semibold text-[#C9B6FF]">{{ hint || 'ผู้เล่นรอบนี้ — แตะเพื่อเลือกคนที่กำลังเล่น' }}</span>
     <div class="flex flex-wrap justify-center gap-3">
       <button
-        v-for="p in store.roundPlayers"
+        v-for="p in store.players"
         :key="p.id"
         class="flex flex-col items-center gap-1 rounded-2xl border-2 px-3 py-2 transition"
         :class="store.session?.spotlightId === p.id ? 'border-accent-yellow bg-white/10' : 'border-transparent hover:bg-white/5'"
