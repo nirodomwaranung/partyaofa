@@ -39,7 +39,11 @@ function announce() {
 const sorted = computed(() => Object.keys(times).sort((a, b) => times[a] - times[b]));
 
 watch(() => store.lastEvent, (e) => {
-  if (e && e.type === 'result' && e.gameKey === 'yk1') { done.value = true; sounds.play('winner'); }
+  if (e && e.type === 'result' && e.gameKey === 'yk1') {
+    done.value = true; sounds.play('winner');
+    const w = e.payload?.ranks?.[0];
+    if (w) store.celebrate(`${store.playerById(w.id)?.nick || ''} เร็วสุด!`, '⏱️ 🏆');
+  }
 });
 onBeforeUnmount(() => clearInterval(tick));
 </script>

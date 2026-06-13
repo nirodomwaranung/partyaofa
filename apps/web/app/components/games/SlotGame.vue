@@ -49,7 +49,10 @@ function finish(final: string[], res: any) {
   const sp = store.spotlight;
   history.value = [{ id: sp?.id, nick: sp?.nick ?? '', label: res.label, win: res.kind === 'cash' || res.kind === 'jackpot', drink: res.kind === 'drink' }, ...history.value].slice(0, 8);
   if (res.kind === 'drink' || res.kind === 'none') sounds.play('lose');
-  else sounds.play(res.kind === 'jackpot' ? 'jackpot' : 'winner');
+  else {
+    sounds.play(res.kind === 'jackpot' ? 'jackpot' : 'winner');
+    store.celebrate(`${sp?.nick ? sp.nick + ' ' : ''}${res.label}`, res.kind === 'jackpot' ? '🎰 แจ็กพ็อต!' : '🏆');
+  }
 }
 
 function run() {

@@ -33,7 +33,10 @@ function reveal(index: number, rw: any) {
   const win = rw.kind === 'cash' || rw.kind === 'jackpot';
   history.value = [{ id: sp?.id, nick: sp?.nick ?? '', label: rw.label, win, drink: rw.kind === 'drink' }, ...history.value].slice(0, 12);
   if (rw.kind === 'drink') sounds.play('lose');
-  else sounds.play(rw.kind === 'jackpot' ? 'jackpot' : 'winner');
+  else {
+    sounds.play(rw.kind === 'jackpot' ? 'jackpot' : 'winner');
+    store.celebrate(`${sp?.nick ? sp.nick + ' ' : ''}ได้ ${rw.label}`, rw.kind === 'jackpot' ? '🎁 แจ็กพ็อต!' : '🏆');
+  }
 }
 const spotP = computed(() => store.spotlight);
 const resultText = computed(() => {

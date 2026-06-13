@@ -70,6 +70,7 @@ function finishBox(win: string) {
   if (hp[lose] >= hp[win]) hp[lose] = Math.max(6, hp[win] - 18);
   fighting.value = false; attacker.value = null; skill.value = null; winner.value = win;
   sounds.play('winner');
+  store.celebrate(`ทีม${win === 'blue' ? 'น้ำเงิน' : 'แดง'} ชนะ!`, '🥊 🏆');
 }
 
 function animateTD(win: string, assigned: Record<string, string>) {
@@ -80,7 +81,8 @@ function animateTD(win: string, assigned: Record<string, string>) {
   const tick = () => {
     const el = performance.now() - t0;
     if (el >= dur) {
-      fighting.value = false; tdShow.value = win; winner.value = win; sounds.play('winner'); return;
+      fighting.value = false; tdShow.value = win; winner.value = win; sounds.play('winner');
+      store.celebrate(`${win === 'tiger' ? '🐯 เสือ' : '🐲 มังกร'} ชนะ!`, '🏆'); return;
     }
     tdShow.value = Math.random() < 0.5 ? 'tiger' : 'dragon';
     const pr = el / dur;

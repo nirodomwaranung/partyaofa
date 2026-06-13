@@ -45,7 +45,10 @@ function spinTo(idx: number, prize: any) {
       spinning.value = false;
       result.value = prize;
       if (prize.kind === 'drink') sounds.play('lose');
-      else sounds.play(prize.kind === 'jackpot' ? 'jackpot' : 'winner');
+      else {
+        sounds.play(prize.kind === 'jackpot' ? 'jackpot' : 'winner');
+        store.celebrate(`${spotName.value ? spotName.value + ' ' : ''}ได้ ${prize.label}`, prize.kind === 'jackpot' ? '🎰 แจ็กพ็อต!' : '🏆');
+      }
     }
   };
   raf = requestAnimationFrame(step);

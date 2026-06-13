@@ -24,6 +24,7 @@ function animate(target: number, ranked: any[]) {
     if (el >= dur) {
       numShow.value = target; center.value = target; ranks.value = ranked; rolling.value = false;
       sounds.play('winner');
+      if (ranked[0]) store.celebrate(`${store.playerById(ranked[0].id)?.nick || ''} ใกล้สุด!`, `เลข ${target} 🏆`);
       return;
     }
     numShow.value = 1 + Math.floor(Math.random() * 100);

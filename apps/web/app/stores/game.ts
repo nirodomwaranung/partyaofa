@@ -30,6 +30,9 @@ export const useGameStore = defineStore('game', {
     adminAuthed: false,
     lastEvent: null as GameEvent | null,
     music: { playing: false, volume: 0.4, trackId: null, youtubeUrl: null } as MusicState,
+    // set by a game when its animation finishes revealing a WIN → drives the
+    // screen-wide Celebration (so it never spoils the result before the reveal)
+    celebration: null as { label: string; sub: string; key: number } | null,
     _bound: false,
   }),
 
@@ -139,6 +142,11 @@ export const useGameStore = defineStore('game', {
       this.socket()?.emit('admin:startGame', { gameKey });
     },
     resetGame(gameKey?: string) { this.socket()?.emit('admin:resetGame', { gameKey }); },
+
+    /** A game calls this when its reveal animation finishes on a win. */
+    celebrate(label: string, sub = '') {
+      this.celebration = { label, sub, key: Date.now() + Math.random() };
+    },
 
     /** Background music control (admin only). Optimistic + broadcast. */
     setMusic(patch: Partial<MusicState>) {

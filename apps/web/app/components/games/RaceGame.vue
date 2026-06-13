@@ -49,6 +49,7 @@ function animate(winId: string, order: string[]) {
       pos[winId] = fin;
       running.value = false; done.value = true; winnerId.value = winId; ranks.value = order;
       sounds.play('winner');
+      store.celebrate(`${store.playerById(winId)?.nick || ''} เข้าวิน!`, isHorse.value ? '🏇 🏆' : '🏃 🏆');
     }
   };
   raf = requestAnimationFrame(step);
