@@ -8,14 +8,14 @@ import { Howl } from 'howler';
 type Cue = 'cheer' | 'drum' | 'jackpot' | 'confetti' | 'explosion' | 'winner' | 'lose' | 'click';
 
 const FILES: Partial<Record<Cue, string>> = {
-  cheer: '/sounds/cheer.mp3',
-  drum: '/sounds/drum.mp3',
-  jackpot: '/sounds/jackpot.mp3',
-  confetti: '/sounds/confetti.mp3',
-  explosion: '/sounds/explosion.mp3',
-  winner: '/sounds/winner.mp3',
-  lose: '/sounds/lose.mp3',
-  click: '/sounds/click.mp3',
+  cheer: '/sounds/cheer.wav',
+  drum: '/sounds/drum.wav',
+  jackpot: '/sounds/jackpot.wav',
+  confetti: '/sounds/confetti.wav',
+  explosion: '/sounds/explosion.wav',
+  winner: '/sounds/winner.wav',
+  lose: '/sounds/lose.wav',
+  click: '/sounds/click.wav',
 };
 
 let ctx: AudioContext | null = null;

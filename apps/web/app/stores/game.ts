@@ -153,6 +153,8 @@ export const useGameStore = defineStore('game', {
         const res = await api.post<{ token: string }>('/auth/login', { password });
         localStorage.setItem('aofa_token', res.token);
         this.adminAuthed = true;
+        // authenticate the live socket so admin:* events are honored + full state arrives
+        this.socket()?.emit('admin:auth', { token: res.token });
         return { ok: true };
       } catch (e: any) {
         return { ok: false, error: e?.data?.message || 'รหัสผ่านไม่ถูกต้อง' };
@@ -161,6 +163,7 @@ export const useGameStore = defineStore('game', {
     logout() {
       localStorage.removeItem('aofa_token');
       this.adminAuthed = false;
+      this.socket()?.emit('admin:deauth');
     },
   },
 });

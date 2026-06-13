@@ -63,6 +63,23 @@ NUXT_PUBLIC_API_BASE="https://api.aofa.cloud"
 NUXT_PUBLIC_SOCKET_URL="https://api.aofa.cloud"
 ```
 
+## Auto-deploy (GitHub Actions → VPS)
+Every push to `main` rebuilds on the VPS automatically (`.github/workflows/deploy.yml`).
+Add these repo secrets once (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `VPS_HOST` | `139.180.141.21` |
+| `VPS_USER` | `root` |
+| `VPS_SSH_KEY` | contents of the deploy **private** key |
+
+Copy the private key into the secret (run in your own terminal, never paste in chat):
+```bash
+pbcopy < ~/.ssh/id_ed25519   # then paste into the VPS_SSH_KEY secret
+```
+After secrets are set, `git push` (or run the workflow manually) → it pulls + rebuilds.
+Manual deploy still works any time: `ssh root@139.180.141.21 'cd ~/partyaofa && git pull && docker compose -f docker-compose.prod.yml up -d --build'`
+
 ## Notes
 - One VPS = lowest latency (DB is local to the API, no cross-region hop).
 - Secrets live only in the VPS `.env` (gitignored) — never committed.

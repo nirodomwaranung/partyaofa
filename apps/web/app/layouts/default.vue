@@ -1,24 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useGameStore } from '~/stores/game';
 
 const store = useGameStore();
 const route = useRoute();
-
-// celebratory confetti on any non-drink win broadcast (Spec §6)
-const confetti = ref(false);
-let ctTimer: any = null;
-watch(() => store.lastEvent, (e) => {
-  if (!e || e.type !== 'result') return;
-  const p = e.payload || {};
-  const isLoss = p?.prize?.kind === 'drink' || p?.result?.kind === 'drink' || p?.reward?.kind === 'drink';
-  const isPenaltyGame = ['bomb', 'mine'].includes(e.gameKey || '');
-  if (isLoss || isPenaltyGame) return;
-  confetti.value = true;
-  clearTimeout(ctTimer);
-  ctTimer = setTimeout(() => (confetti.value = false), 3200);
-});
 
 // TV follows the Game Master. Two triggers for reliability:
 //  1) the transient game:event 'start' (fires the moment the remote launches) —
@@ -40,8 +26,10 @@ watch(() => store.session?.activeGameKey, (k) => followTo(k, false));
 
 const nav = [
   { to: '/select', label: 'เลือกเกม', icon: 'gamepad-2' },
+  { to: '/tv', label: 'จอใหญ่', icon: 'tv' },
   { to: '/players', label: 'ผู้เล่น', icon: 'users' },
   { to: '/dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+  { to: '/recap', label: 'สรุปงาน', icon: 'trophy' },
   { to: '/admin', label: 'Game Master', icon: 'sliders-horizontal' },
   { to: '/remote', label: 'รีโมต', icon: 'smartphone' },
 ];
@@ -99,6 +87,6 @@ const connected = computed(() => store.connected);
       <slot />
     </main>
 
-    <Confetti :show="confetti" />
+    <Celebration />
   </div>
 </template>
