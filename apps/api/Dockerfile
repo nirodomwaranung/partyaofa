@@ -10,9 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-# npm install (not ci) so platform-specific native deps resolve for linux
-# even though the lockfile was generated on macOS.
-RUN npm install --no-audit --no-fund
+# Drop the macOS-generated lockfile so npm resolves linux native binaries fresh.
+RUN rm -f package-lock.json && npm install --no-audit --no-fund
 
 # build the API (keep deps so `prisma migrate deploy` works at runtime)
 COPY apps/api apps/api
