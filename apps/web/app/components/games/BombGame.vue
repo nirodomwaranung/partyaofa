@@ -14,39 +14,53 @@ const exploded = ref(false);
 const loserId = ref<string | null>(null);
 let pass: any = null;
 
+// The bomb passes hand-to-hand and *decelerates* so it lands exactly on the
+// loser on the final beat, then explodes there — no snap/jump (which looked
+// rigged). We plan a whole number of steps that ends on the target index.
 function animate(targetId: string) {
   active.value = true; exploded.value = false; loserId.value = null; holder.value = 0;
   sounds.play('drum');
   const round = store.roundPlayers;
-  const dur = 5000 + Math.random() * 5000;
-  const t0 = performance.now();
-  clearInterval(pass);
-  pass = setInterval(() => {
-    holder.value = (holder.value + 1) % round.length;
-    sounds.play('drum');
-    if (performance.now() - t0 >= dur) {
-      clearInterval(pass);
-      const li = round.findIndex((p) => p.id === targetId);
-      holder.value = li < 0 ? 0 : li;
-      active.value = false; exploded.value = true; loserId.value = targetId;
-      sounds.play('explosion');
-      setTimeout(() => sounds.play('lose'), 200);
-    }
-  }, 700);
+  const n = Math.max(1, round.length);
+  const li = Math.max(0, round.findIndex((p) => p.id === targetId));
+  const loops = 2 + Math.floor(Math.random() * 2);   // 2–3 full passes
+  const totalSteps = loops * n + li;                 // ends on `li` (totalSteps % n === li)
+  const SLOW_FROM = 8;                               // ease-out over the last beats
+  let step = 0;
+  clearTimeout(pass);
+
+  const schedule = () => {
+    const left = totalSteps - step;
+    const k = SLOW_FROM - left + 1;                  // grows 1..SLOW_FROM as we approach
+    const interval = left <= SLOW_FROM ? 110 + k * k * 8 : 110;
+    pass = setTimeout(() => {
+      step++;
+      holder.value = step % n;
+      if (left <= SLOW_FROM || step % 2 === 0) sounds.play('click'); // ticking, louder near the end
+      if (step >= totalSteps) {
+        active.value = false; exploded.value = true; loserId.value = targetId;
+        sounds.play('explosion');
+        setTimeout(() => sounds.play('lose'), 200);
+        return;
+      }
+      schedule();
+    }, interval);
+  };
+  schedule();
 }
 
 function run() { if (!active.value) store.resolveGame('bomb'); }
-function reset() { clearInterval(pass); active.value = false; exploded.value = false; loserId.value = null; holder.value = 0; store.resetGame('bomb'); }
+function reset() { clearTimeout(pass); active.value = false; exploded.value = false; loserId.value = null; holder.value = 0; store.resetGame('bomb'); }
 const loserP = () => (loserId.value ? store.playerById(loserId.value) : null);
 
 watch(() => store.lastEvent, (e) => {
   if (!e) return;
   if (e.type === 'result' && e.gameKey === 'bomb') animate(e.payload.loserId);
   else if (e.type === 'reset' && (e.gameKey === 'bomb' || e.gameKey == null)) {
-    clearInterval(pass); active.value = false; exploded.value = false; loserId.value = null; holder.value = 0;
+    clearTimeout(pass); active.value = false; exploded.value = false; loserId.value = null; holder.value = 0;
   }
 });
-onBeforeUnmount(() => clearInterval(pass));
+onBeforeUnmount(() => clearTimeout(pass));
 </script>
 
 <template>
