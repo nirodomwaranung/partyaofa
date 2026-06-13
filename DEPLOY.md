@@ -31,7 +31,7 @@ nano .env          # set POSTGRES_PASSWORD, DATABASE_URL/DIRECT_URL (same passwo
 docker compose -f docker-compose.prod.yml up -d --build
 
 # FIRST TIME ONLY — seed the 10 games + sample players:
-docker compose -f docker-compose.prod.yml exec api npx prisma db seed
+docker compose -f docker-compose.prod.yml exec -w /app/apps/api api npx prisma db seed
 ```
 Caddy auto-issues HTTPS for all three hostnames. Open **https://aofa.cloud** 🎉
 
