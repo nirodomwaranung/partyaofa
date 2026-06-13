@@ -81,6 +81,11 @@ export class RealtimeGateway implements OnGatewayConnection {
     youtubeUrl: null,
   };
 
+  // ---------- team assignments for boxing / tiger-dragon (in-memory) ----------
+  // playerId -> 'blue' | 'red' | 'tiger' | 'dragon'. Cleared when a new game
+  // launches. Shared so TV + remote pick the same teams.
+  private teams: Record<string, string> = {};
+
   // ---------- state ----------
   private async fetchAll() {
     const [session, players, games, rewards] = await Promise.all([
@@ -89,7 +94,7 @@ export class RealtimeGateway implements OnGatewayConnection {
       this.prisma.game.findMany({ orderBy: { order: 'asc' } }),
       this.prisma.reward.findMany({ orderBy: { order: 'asc' } }),
     ]);
-    return { session, players, games, rewards, music: this.music };
+    return { session, players, games, rewards, music: this.music, teams: this.teams };
   }
 
   /** Admins see everything; viewers get lock + weights stripped. */
@@ -153,6 +158,7 @@ export class RealtimeGateway implements OnGatewayConnection {
 
   @SubscribeMessage('admin:startGame')
   async startGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey }: { gameKey: string }) {
+    this.teams = {}; // fresh team assignment per game launch
     await this.session.setActiveGame(gameKey);
     await this.broadcastState();
     this.server.emit('game:event', { gameKey, type: 'start', payload: {} });
@@ -166,7 +172,10 @@ export class RealtimeGateway implements OnGatewayConnection {
   /** Server decides the outcome, then broadcasts it so every screen animates the same. */
   @SubscribeMessage('admin:resolveGame')
   async resolveGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey, inputs }: { gameKey: string; inputs?: Record<string, any> }) {
-    const result = await this.engine.resolve(gameKey, inputs ?? {});
+    // Team games use the shared team map as the source of truth (so it works
+    // whether the TV or the remote triggers); explicit inputs.sides override.
+    const merged = { ...(inputs ?? {}), sides: { ...this.teams, ...(inputs?.sides ?? {}) } };
+    const result = await this.engine.resolve(gameKey, merged);
     this.server.emit('game:event', { gameKey, type: 'result', payload: result });
     await this.broadcastState();
     return result;
@@ -189,6 +198,17 @@ export class RealtimeGateway implements OnGatewayConnection {
     else if (!shouldJoin && has) ids.splice(ids.indexOf(playerId), 1);
     else return; // no change
     await this.session.setRound(ids);
+    await this.broadcastState();
+  }
+
+  /**
+   * Assign a player to a team (boxing: blue/red, tiger-dragon: tiger/dragon) —
+   * PUBLIC so both the TV and the remote can set teams and stay in sync.
+   */
+  @SubscribeMessage('player:setTeam')
+  async setTeam(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, side }: { playerId: string; side: string }) {
+    if (!playerId || !side) return;
+    this.teams = { ...this.teams, [playerId]: side };
     await this.broadcastState();
   }
 

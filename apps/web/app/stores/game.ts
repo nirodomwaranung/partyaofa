@@ -27,6 +27,7 @@ export const useGameStore = defineStore('game', {
     players: [] as Player[],
     games: [] as Game[],
     rewards: [] as Reward[],
+    teams: {} as Record<string, string>,
     adminAuthed: false,
     lastEvent: null as GameEvent | null,
     music: { playing: false, volume: 0.4, trackId: null, youtubeUrl: null } as MusicState,
@@ -87,6 +88,7 @@ export const useGameStore = defineStore('game', {
         this.games = s.games;
         this.rewards = s.rewards;
         if (s.music) this.music = s.music;
+        if (s.teams) this.teams = s.teams;
       });
       $socket.on('game:event', (e: GameEvent) => (this.lastEvent = e));
 
@@ -157,7 +159,13 @@ export const useGameStore = defineStore('game', {
     },
     startGame(gameKey: string) {
       if (this.session) this.session.activeGameKey = gameKey;
+      this.teams = {}; // fresh team assignment per game
       this.socket()?.emit('admin:startGame', { gameKey });
+    },
+    /** Assign a player to a team (boxing/tiger-dragon) — public, optimistic + broadcast. */
+    setTeam(playerId: string, side: string) {
+      this.teams = { ...this.teams, [playerId]: side };
+      this.socket()?.emit('player:setTeam', { playerId, side });
     },
     resetGame(gameKey?: string) { this.socket()?.emit('admin:resetGame', { gameKey }); },
 

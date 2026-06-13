@@ -22,13 +22,13 @@ function shade(hex: string, p: number) {
 
 const sideA = computed(() => (isBoxing.value ? 'blue' : 'tiger'));
 const sideB = computed(() => (isBoxing.value ? 'red' : 'dragon'));
-const sides = reactive<Record<string, string>>({});
+// Team assignment is shared via the store (synced TV ↔ remote).
 function toggleSide(id: string) {
   if (fighting.value) return;
-  const cur = sides[id] || sideA.value;
-  sides[id] = cur === sideB.value ? sideA.value : sideB.value;
+  const cur = store.teams[id] || sideA.value;
+  store.setTeam(id, cur === sideB.value ? sideA.value : sideB.value);
 }
-function sideOf(p: any, i: number) { return sides[p.id] || (i % 2 ? sideB.value : sideA.value); }
+function sideOf(p: any, i: number) { return store.teams[p.id] || (i % 2 ? sideB.value : sideA.value); }
 
 // boxing state
 const fighting = ref(false);
@@ -42,7 +42,7 @@ const winner = ref<string | null>(null);
 let loop: any = null;
 
 function animateBoxing(win: string, assigned: Record<string, string>) {
-  Object.assign(sides, assigned);
+  store.teams = { ...store.teams, ...assigned };
   fighting.value = true; winner.value = null;
   hp.blue = 100; hp.red = 100; attacker.value = null; skill.value = null; timeLeft.value = 20;
   sounds.play('drum');
@@ -67,14 +67,15 @@ function animateBoxing(win: string, assigned: Record<string, string>) {
 }
 function finishBox(win: string) {
   const lose = win === 'blue' ? 'red' : 'blue';
-  if (hp[lose] >= hp[win]) hp[lose] = Math.max(6, hp[win] - 18);
+  hp[lose] = 0;                       // KO — the losing bar drains fully to empty
+  if (hp[win] < 28) hp[win] = 28;     // keep the winner clearly still standing
   fighting.value = false; attacker.value = null; skill.value = null; winner.value = win;
   sounds.play('winner');
   store.celebrate(`ทีม${win === 'blue' ? 'น้ำเงิน' : 'แดง'} ชนะ!`, '🥊 🏆');
 }
 
 function animateTD(win: string, assigned: Record<string, string>) {
-  Object.assign(sides, assigned);
+  store.teams = { ...store.teams, ...assigned };
   fighting.value = true; winner.value = null; tdShow.value = 'tiger';
   sounds.play('drum');
   const t0 = performance.now(), dur = 10000;
@@ -94,7 +95,7 @@ function animateTD(win: string, assigned: Record<string, string>) {
 
 function run() {
   if (fighting.value) return;
-  store.resolveGame(props.gameKey, { sides: { ...sides } });
+  store.resolveGame(props.gameKey, { sides: { ...store.teams } });
 }
 watch(() => store.lastEvent, (e) => {
   if (!e) return;
@@ -136,10 +137,10 @@ const tdImg = (sd: string) => (props.game as any)[sd === 'tiger' ? 'tigerImg' : 
       <div class="mb-2.5 flex items-center gap-2.5">
         <div class="font-head rounded-[10px] border-[2.5px] border-outline px-2.5 py-0.5 text-sm font-extrabold text-white" :style="{ background: BCOL.blue }">น้ำเงิน</div>
         <div class="h-5 flex-1 overflow-hidden rounded-[11px] border-[2.5px] border-outline" style="background:#241640">
-          <div class="h-full rounded-[9px] transition-[width]" :style="{ width: hp.blue + '%', background: `linear-gradient(90deg,${shade(BCOL.blue, -16)},${BCOL.blue})` }" />
+          <div class="h-full rounded-[9px] transition-[width] duration-500 ease-out" :style="{ width: hp.blue + '%', background: `linear-gradient(90deg,${shade(BCOL.blue, -16)},${BCOL.blue})` }" />
         </div>
         <div class="h-5 flex-1 overflow-hidden rounded-[11px] border-[2.5px] border-outline" style="background:#241640;transform:scaleX(-1)">
-          <div class="h-full rounded-[9px] transition-[width]" :style="{ width: hp.red + '%', background: `linear-gradient(90deg,${shade(BCOL.red, -16)},${BCOL.red})` }" />
+          <div class="h-full rounded-[9px] transition-[width] duration-500 ease-out" :style="{ width: hp.red + '%', background: `linear-gradient(90deg,${shade(BCOL.red, -16)},${BCOL.red})` }" />
         </div>
         <div class="font-head rounded-[10px] border-[2.5px] border-outline px-2.5 py-0.5 text-sm font-extrabold text-white" :style="{ background: BCOL.red }">แดง</div>
       </div>

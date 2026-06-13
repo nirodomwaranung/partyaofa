@@ -38,6 +38,18 @@ const clearAll = () => store.setRound([]);
 // ----- who plays this turn (solo games → spotlight, single-select) -----
 const isSpot = (id: string) => store.session?.spotlightId === id;
 
+// ----- team assignment (boxing / tiger-dragon) -----
+const isTeam = computed(() => active.value === 'boxing' || active.value === 'td');
+const teamColor: Record<string, string> = { blue: '#4D96FF', red: '#FF5C5C', tiger: '#FB923C', dragon: '#10B981' };
+const teamLabel: Record<string, string> = { blue: 'น้ำเงิน', red: 'แดง', tiger: 'เสือ', dragon: 'มังกร' };
+const teamA = computed(() => (active.value === 'boxing' ? 'blue' : 'tiger'));
+const teamB = computed(() => (active.value === 'boxing' ? 'red' : 'dragon'));
+const playerSide = (id: string, i: number) => store.teams[id] || (i % 2 ? teamB.value : teamA.value);
+function cycleTeam(id: string, i: number) {
+  const cur = playerSide(id, i);
+  store.setTeam(id, cur === teamB.value ? teamA.value : teamB.value);
+}
+
 function launch(key: string) {
   store.startGame(key);
 }
@@ -138,6 +150,26 @@ function reset() {
             <span class="font-head w-full truncate text-center text-xs font-bold">{{ p.nick || p.name }}</span>
           </button>
         </div>
+      </div>
+
+      <!-- team assignment — boxing / tiger-dragon -->
+      <div v-if="isTeam && active" class="aofa-card p-4 text-outline">
+        <div class="mb-2 flex items-center gap-2">
+          <Icon name="swords" :size="18" color="#6D28D9" />
+          <span class="text-sm font-bold">จัดทีม — แตะเพื่อสลับฝั่ง</span>
+          <span class="ml-auto flex items-center gap-1">
+            <span class="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" :style="{ background: teamColor[teamA] }">{{ teamLabel[teamA] }}</span>
+            <span class="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" :style="{ background: teamColor[teamB] }">{{ teamLabel[teamB] }}</span>
+          </span>
+        </div>
+        <div v-if="store.roundPlayers.length" class="flex flex-wrap gap-2">
+          <button v-for="(p, i) in store.roundPlayers" :key="p.id"
+            class="font-head flex items-center gap-1.5 rounded-[20px] border-[2.5px] border-outline py-1 pl-1 pr-3 text-sm font-bold text-white shadow-hard-sm"
+            :style="{ background: teamColor[playerSide(p.id, i)] }" @click="cycleTeam(p.id, i)">
+            <PlayerAvatar :player="p" :size="28" />{{ p.nick || p.name }}
+          </button>
+        </div>
+        <p v-else class="text-xs text-[#9a86bd]">เลือกผู้เข้าร่วมรอบด้านบนก่อน แล้วค่อยจัดทีม</p>
       </div>
 
       <!-- launcher -->
