@@ -106,7 +106,8 @@ export class RealtimeGateway implements OnGatewayConnection {
     this.server.except('admins').emit('state:sync', this.view(all, false));
   }
 
-  // ---------- Admin → Server (all require an authenticated admin socket) ----------
+  // ---------- GM config — require an authenticated admin socket ----------
+  // (mode / lock / weight / event name / music = the "rigging" controls, GM-only)
   @SubscribeMessage('admin:setMode')
   async setMode(@ConnectedSocket() c: Socket, @MessageBody() { mode }: { mode: ResultMode }) {
     if (!this.isAdmin(c)) return;
@@ -121,16 +122,17 @@ export class RealtimeGateway implements OnGatewayConnection {
     await this.broadcastState();
   }
 
+  // ---------- gameplay — allowed from ANY screen (TV + remote) so both stay in
+  // sync. The rigging (mode/lock/weight) above stays GM-only; here we only
+  // pick who plays, start, reset, and trigger the (server-decided) outcome.
   @SubscribeMessage('admin:setRound')
-  async setRound(@ConnectedSocket() c: Socket, @MessageBody() { playerIds }: { playerIds: string[] }) {
-    if (!this.isAdmin(c)) return;
+  async setRound(@ConnectedSocket() _c: Socket, @MessageBody() { playerIds }: { playerIds: string[] }) {
     await this.session.setRound(playerIds);
     await this.broadcastState();
   }
 
   @SubscribeMessage('admin:setSpotlight')
-  async setSpotlight(@ConnectedSocket() c: Socket, @MessageBody() { playerId }: { playerId: string }) {
-    if (!this.isAdmin(c)) return;
+  async setSpotlight(@ConnectedSocket() _c: Socket, @MessageBody() { playerId }: { playerId: string }) {
     await this.session.setSpotlight(playerId);
     await this.broadcastState();
   }
@@ -150,23 +152,20 @@ export class RealtimeGateway implements OnGatewayConnection {
   }
 
   @SubscribeMessage('admin:startGame')
-  async startGame(@ConnectedSocket() c: Socket, @MessageBody() { gameKey }: { gameKey: string }) {
-    if (!this.isAdmin(c)) return;
+  async startGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey }: { gameKey: string }) {
     await this.session.setActiveGame(gameKey);
     await this.broadcastState();
     this.server.emit('game:event', { gameKey, type: 'start', payload: {} });
   }
 
   @SubscribeMessage('admin:resetGame')
-  async resetGame(@ConnectedSocket() c: Socket, @MessageBody() { gameKey }: { gameKey?: string } = {}) {
-    if (!this.isAdmin(c)) return;
+  async resetGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey }: { gameKey?: string } = {}) {
     this.server.emit('game:event', { gameKey: gameKey ?? null, type: 'reset', payload: {} });
   }
 
   /** Server decides the outcome, then broadcasts it so every screen animates the same. */
   @SubscribeMessage('admin:resolveGame')
-  async resolveGame(@ConnectedSocket() c: Socket, @MessageBody() { gameKey, inputs }: { gameKey: string; inputs?: Record<string, any> }) {
-    if (!this.isAdmin(c)) return { ok: false };
+  async resolveGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey, inputs }: { gameKey: string; inputs?: Record<string, any> }) {
     const result = await this.engine.resolve(gameKey, inputs ?? {});
     this.server.emit('game:event', { gameKey, type: 'result', payload: result });
     await this.broadcastState();
