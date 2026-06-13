@@ -95,6 +95,10 @@ export class RealtimeGateway implements OnGatewayConnection {
   } = { active: false, victimId: null, turn: 0, revealed: {}, loserId: null };
   private resetMine() { this.mine = { active: false, victimId: null, turn: 0, revealed: {}, loserId: null }; }
 
+  // ---------- per-player inputs, shared so the remote can fill them ----------
+  private picks: Record<string, number> = {}; // เลขนี้พี่ขอ — playerId -> 1..100
+  private times: Record<string, number> = {}; // ยกเดียวโลกจำ — playerId -> ms
+
   // ---------- state ----------
   private async fetchAll() {
     const [session, players, games, rewards] = await Promise.all([
@@ -103,7 +107,7 @@ export class RealtimeGateway implements OnGatewayConnection {
       this.prisma.game.findMany({ orderBy: { order: 'asc' } }),
       this.prisma.reward.findMany({ orderBy: { order: 'asc' } }),
     ]);
-    return { session, players, games, rewards, music: this.music, teams: this.teams, mine: this.mine };
+    return { session, players, games, rewards, music: this.music, teams: this.teams, mine: this.mine, picks: this.picks, times: this.times };
   }
 
   /** Admins see everything; viewers get lock + weights stripped. */
@@ -169,6 +173,8 @@ export class RealtimeGateway implements OnGatewayConnection {
   async startGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey }: { gameKey: string }) {
     this.teams = {}; // fresh team assignment per game launch
     this.resetMine();
+    this.picks = {};
+    this.times = {};
     await this.session.setActiveGame(gameKey);
     await this.broadcastState();
     this.server.emit('game:event', { gameKey, type: 'start', payload: {} });
@@ -185,7 +191,12 @@ export class RealtimeGateway implements OnGatewayConnection {
   async resolveGame(@ConnectedSocket() _c: Socket, @MessageBody() { gameKey, inputs }: { gameKey: string; inputs?: Record<string, any> }) {
     // Team games use the shared team map as the source of truth (so it works
     // whether the TV or the remote triggers); explicit inputs.sides override.
-    const merged = { ...(inputs ?? {}), sides: { ...this.teams, ...(inputs?.sides ?? {}) } };
+    const merged = {
+      ...(inputs ?? {}),
+      sides: { ...this.teams, ...(inputs?.sides ?? {}) },
+      picks: { ...this.picks, ...(inputs?.picks ?? {}) },
+      times: { ...this.times, ...(inputs?.times ?? {}) },
+    };
     const result = await this.engine.resolve(gameKey, merged);
     // minefield: arm a fresh shared board the TV + remote walk together
     if (gameKey === 'mine' && (result as any)?.victimId) {
@@ -247,6 +258,31 @@ export class RealtimeGateway implements OnGatewayConnection {
       revealed[index] = 'safe';
       this.mine = { ...this.mine, revealed, turn: this.mine.turn + 1 };
     }
+    await this.broadcastState();
+  }
+
+  /** Set a player's number for เลขนี้พี่ขอ — PUBLIC (TV + remote). */
+  @SubscribeMessage('number:setPick')
+  async setPick(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, value }: { playerId: string; value: number }) {
+    if (!playerId || typeof value !== 'number') return;
+    this.picks = { ...this.picks, [playerId]: Math.max(1, Math.min(100, Math.round(value))) };
+    await this.broadcastState();
+  }
+
+  /** Set/clear a player's recorded time (ms) for ยกเดียวโลกจำ — PUBLIC (TV + remote). */
+  @SubscribeMessage('yk1:setTime')
+  async setTime(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, ms }: { playerId: string; ms: number | null }) {
+    if (!playerId) return;
+    const next = { ...this.times };
+    if (ms == null || ms < 0) delete next[playerId];
+    else next[playerId] = ms;
+    this.times = next;
+    await this.broadcastState();
+  }
+
+  @SubscribeMessage('yk1:clearTimes')
+  async clearTimes() {
+    this.times = {};
     await this.broadcastState();
   }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useGameStore } from '~/stores/game';
 import { useSounds } from '~/composables/useSounds';
 import type { Game } from '~/stores/game';
@@ -8,7 +8,7 @@ const props = defineProps<{ game: Game; gameKey: string }>();
 const store = useGameStore();
 const sounds = useSounds();
 
-const picks = reactive<Record<string, number>>({});
+// per-player numbers are shared (store.picks) so the remote can set them too
 const rolling = ref(false);
 const numShow = ref<number | null>(null);
 const center = ref<number | null>(null);
@@ -38,7 +38,7 @@ function animate(target: number, ranked: any[]) {
 function run() {
   if (rolling.value) return;
   const payload: Record<string, number> = {};
-  store.roundPlayers.forEach((p) => (payload[p.id] = picks[p.id] ?? 50));
+  store.roundPlayers.forEach((p) => (payload[p.id] = store.picks[p.id] ?? 50));
   store.resolveGame('number', { picks: payload });
 }
 const P = () => [props.game.p1, props.game.p2, props.game.p3];
@@ -63,8 +63,8 @@ watch(() => store.lastEvent, (e) => {
       <div v-for="p in store.roundPlayers" :key="p.id" class="flex items-center gap-2.5 rounded-[14px] border-2 border-white/15 bg-white/[.06] px-3 py-1.5">
         <PlayerAvatar :player="p" :size="40" />
         <span class="font-head w-14 text-[15px] font-bold text-white">{{ p.nick }}</span>
-        <input type="range" min="1" max="100" :value="picks[p.id] ?? 50" :disabled="rolling" class="h-[7px] flex-1" style="accent-color:#FFD93D" @input="picks[p.id] = +($event.target as HTMLInputElement).value" />
-        <span class="font-head flex h-[38px] w-[46px] items-center justify-center rounded-[10px] border-[2.5px] border-outline bg-accent-yellow text-[18px] font-extrabold text-outline">{{ picks[p.id] ?? 50 }}</span>
+        <input type="range" min="1" max="100" :value="store.picks[p.id] ?? 50" :disabled="rolling" class="h-[7px] flex-1" style="accent-color:#FFD93D" @change="store.setPick(p.id, +($event.target as HTMLInputElement).value)" />
+        <span class="font-head flex h-[38px] w-[46px] items-center justify-center rounded-[10px] border-[2.5px] border-outline bg-accent-yellow text-[18px] font-extrabold text-outline">{{ store.picks[p.id] ?? 50 }}</span>
       </div>
     </div>
 

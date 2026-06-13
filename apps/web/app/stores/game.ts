@@ -29,6 +29,8 @@ export const useGameStore = defineStore('game', {
     rewards: [] as Reward[],
     teams: {} as Record<string, string>,
     mine: { active: false, victimId: null as string | null, turn: 0, revealed: {} as Record<number, 'safe' | 'bomb'>, loserId: null as string | null },
+    picks: {} as Record<string, number>,
+    times: {} as Record<string, number>,
     adminAuthed: false,
     lastEvent: null as GameEvent | null,
     music: { playing: false, volume: 0.4, trackId: null, youtubeUrl: null } as MusicState,
@@ -91,6 +93,8 @@ export const useGameStore = defineStore('game', {
         if (s.music) this.music = s.music;
         if (s.teams) this.teams = s.teams;
         if (s.mine) this.mine = s.mine;
+        if (s.picks) this.picks = s.picks;
+        if (s.times) this.times = s.times;
       });
       $socket.on('game:event', (e: GameEvent) => (this.lastEvent = e));
 
@@ -161,7 +165,7 @@ export const useGameStore = defineStore('game', {
     },
     startGame(gameKey: string) {
       if (this.session) this.session.activeGameKey = gameKey;
-      this.teams = {}; // fresh team assignment per game
+      this.teams = {}; this.picks = {}; this.times = {}; // fresh per game
       this.socket()?.emit('admin:startGame', { gameKey });
     },
     /** Assign a player to a team (boxing/tiger-dragon) — public, optimistic + broadcast. */
@@ -172,6 +176,22 @@ export const useGameStore = defineStore('game', {
     /** Reveal a minefield tile — public; the server decides safe/bomb and echoes the board. */
     revealMine(index: number) {
       this.socket()?.emit('mine:reveal', { index });
+    },
+    /** Set a player's number (เลขนี้พี่ขอ) — public, optimistic + broadcast. */
+    setPick(playerId: string, value: number) {
+      this.picks = { ...this.picks, [playerId]: Math.max(1, Math.min(100, Math.round(value))) };
+      this.socket()?.emit('number:setPick', { playerId, value });
+    },
+    /** Set/clear a player's time in ms (ยกเดียวโลกจำ) — public, optimistic + broadcast. */
+    setTime(playerId: string, ms: number | null) {
+      const next = { ...this.times };
+      if (ms == null || ms < 0) delete next[playerId]; else next[playerId] = ms;
+      this.times = next;
+      this.socket()?.emit('yk1:setTime', { playerId, ms });
+    },
+    clearTimes() {
+      this.times = {};
+      this.socket()?.emit('yk1:clearTimes');
     },
     resetGame(gameKey?: string) { this.socket()?.emit('admin:resetGame', { gameKey }); },
 

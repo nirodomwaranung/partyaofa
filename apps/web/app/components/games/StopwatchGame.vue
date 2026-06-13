@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useGameStore } from '~/stores/game';
 import { useSounds } from '~/composables/useSounds';
 import type { Game } from '~/stores/game';
@@ -11,7 +11,8 @@ const sounds = useSounds();
 const mode = ref<'auto' | 'manual'>('auto');
 const ms = ref(0);
 const swRunning = ref(false);
-const times = reactive<Record<string, number>>({});
+// recorded times are shared (store.times) so the remote can enter them too
+const times = computed(() => store.times);
 const done = ref(false);
 let tick: any = null;
 
@@ -28,15 +29,15 @@ function toggle() {
     swRunning.value = true; done.value = false;
   }
 }
-function reset() { clearInterval(tick); swRunning.value = false; ms.value = 0; Object.keys(times).forEach((k) => delete times[k]); done.value = false; }
-function record(id: string) { if (ms.value <= 0 || times[id] != null) return; times[id] = ms.value; sounds.play('click'); }
-function setManual(id: string, sec: string) { const v = parseFloat(sec); if (isNaN(v)) delete times[id]; else times[id] = Math.max(0, v) * 1000; done.value = false; }
+function reset() { clearInterval(tick); swRunning.value = false; ms.value = 0; store.clearTimes(); done.value = false; }
+function record(id: string) { if (ms.value <= 0 || store.times[id] != null) return; store.setTime(id, ms.value); sounds.play('click'); }
+function setManual(id: string, sec: string) { const v = parseFloat(sec); store.setTime(id, isNaN(v) ? null : Math.max(0, v) * 1000); done.value = false; }
 function announce() {
-  if (Object.keys(times).length < 2) return;
+  if (Object.keys(store.times).length < 2) return;
   clearInterval(tick); swRunning.value = false;
-  store.resolveGame('yk1', { times: { ...times } });
+  store.resolveGame('yk1', { times: { ...store.times } });
 }
-const sorted = computed(() => Object.keys(times).sort((a, b) => times[a] - times[b]));
+const sorted = computed(() => Object.keys(store.times).sort((a, b) => (store.times[a] ?? 0) - (store.times[b] ?? 0)));
 
 watch(() => store.lastEvent, (e) => {
   if (!e) return;
@@ -76,7 +77,7 @@ onBeforeUnmount(() => clearInterval(tick));
           :style="times[p.id] != null ? { background: 'rgba(52,211,153,.18)', border: '2.5px solid #34D399' } : { background: 'rgba(255,255,255,.06)', border: '2.5px dashed rgba(255,255,255,.25)' }" @click="record(p.id)">
           <PlayerAvatar :player="p" :size="58" />
           <span class="text-[13px] font-bold text-white">{{ p.nick }}</span>
-          <span class="font-head text-xs font-bold" :style="{ color: times[p.id] != null ? '#34D399' : '#9a86bd' }">{{ times[p.id] != null ? fmt(times[p.id]) : 'แตะบันทึก' }}</span>
+          <span class="font-head text-xs font-bold" :style="{ color: times[p.id] != null ? '#34D399' : '#9a86bd' }">{{ times[p.id] != null ? fmt(times[p.id] as number) : 'แตะบันทึก' }}</span>
         </button>
       </div>
     </template>
@@ -88,7 +89,7 @@ onBeforeUnmount(() => clearInterval(tick));
         <div v-for="p in store.roundPlayers" :key="p.id" class="flex items-center gap-2.5 rounded-[14px] border-2 border-white/15 bg-white/[.06] px-3 py-1.5">
           <PlayerAvatar :player="p" :size="54" />
           <span class="font-head flex-1 text-base font-bold text-white">{{ p.nick }}</span>
-          <input type="number" min="0" step="0.01" :value="times[p.id] != null ? times[p.id] / 1000 : ''" placeholder="0.00"
+          <input type="number" min="0" step="0.01" :value="times[p.id] != null ? (times[p.id] as number) / 1000 : ''" placeholder="0.00"
             class="font-head w-24 rounded-[11px] border-[2.5px] border-accent-yellow bg-white px-2.5 py-2 text-right text-[17px] font-extrabold text-outline outline-none" @input="setManual(p.id, ($event.target as HTMLInputElement).value)" />
           <span class="w-[22px] text-[13px] font-semibold text-[#C9B6FF]">วิ</span>
         </div>
@@ -108,7 +109,7 @@ onBeforeUnmount(() => clearInterval(tick));
         <span class="font-head flex-1 text-[15px] font-bold" :style="{ color: i === 0 && done ? '#2A1B4D' : '#fff' }">{{ store.playerById(id)?.nick }}</span>
         <Icon v-if="done && i === 0" name="trophy" :size="18" color="#2A1B4D" />
         <Icon v-else-if="done && i === sorted.length - 1 && sorted.length > 1" name="beer" :size="18" color="#FF8080" />
-        <span class="font-head text-sm font-bold" :style="{ color: i === 0 && done ? '#2A1B4D' : '#FFD93D' }">{{ fmt(times[id]) }}</span>
+        <span class="font-head text-sm font-bold" :style="{ color: i === 0 && done ? '#2A1B4D' : '#FFD93D' }">{{ fmt(times[id] as number) }}</span>
       </div>
     </div>
   </div>

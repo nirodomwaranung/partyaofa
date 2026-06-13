@@ -204,6 +204,41 @@ function reset() {
         </div>
       </div>
 
+      <!-- เลขนี้พี่ขอ — set each player's number -->
+      <div v-if="active === 'number'" class="aofa-card p-4 text-outline">
+        <div class="mb-2 flex items-center gap-2">
+          <Icon name="hash" :size="18" color="#6D28D9" /><span class="text-sm font-bold">กำหนดเลขแต่ละคน (1–100)</span>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div v-for="p in store.roundPlayers" :key="p.id" class="flex items-center gap-2.5">
+            <PlayerAvatar :player="p" :size="32" />
+            <span class="font-head w-14 truncate text-sm font-bold">{{ p.nick }}</span>
+            <input type="range" min="1" max="100" :value="store.picks[p.id] ?? 50" class="h-[6px] flex-1" style="accent-color:#FFD93D"
+              @change="store.setPick(p.id, +($event.target as HTMLInputElement).value)" />
+            <span class="font-head flex h-8 w-11 items-center justify-center rounded-[9px] border-2 border-outline bg-accent-yellow text-base font-extrabold">{{ store.picks[p.id] ?? 50 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ยกเดียวโลกจำ — enter each player's time -->
+      <div v-if="active === 'yk1'" class="aofa-card p-4 text-outline">
+        <div class="mb-2 flex items-center gap-2">
+          <Icon name="timer" :size="18" color="#6D28D9" /><span class="text-sm font-bold">กรอกเวลาแต่ละคน (วินาที)</span>
+          <button class="ml-auto rounded-[9px] border-2 border-[#eee] px-2 py-1 text-[11px] font-bold" @click="store.clearTimes()">ล้างเวลา</button>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div v-for="p in store.roundPlayers" :key="p.id" class="flex items-center gap-2.5">
+            <PlayerAvatar :player="p" :size="32" />
+            <span class="font-head flex-1 truncate text-sm font-bold">{{ p.nick }}</span>
+            <input type="number" min="0" step="0.01" :value="store.times[p.id] != null ? (store.times[p.id] as number) / 1000 : ''" placeholder="0.00"
+              class="font-head w-24 rounded-[10px] border-[2.5px] border-accent-yellow bg-white px-2.5 py-1.5 text-right text-base font-extrabold text-outline outline-none"
+              @change="store.setTime(p.id, ($event.target as HTMLInputElement).value === '' ? null : Math.max(0, parseFloat(($event.target as HTMLInputElement).value) || 0) * 1000)" />
+            <span class="text-xs font-semibold text-[#9a86bd]">วิ</span>
+          </div>
+        </div>
+        <p class="mt-2 text-[11px] text-[#9a86bd]">กรอกอย่างน้อย 2 คน แล้วกด “ออกผล!” ด้านบน</p>
+      </div>
+
       <!-- launcher -->
       <div class="aofa-card p-4 text-outline">
         <div class="mb-2 text-sm font-bold">เลือกเกมขึ้นจอ</div>
