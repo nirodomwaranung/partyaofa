@@ -38,6 +38,10 @@ function open(key: string) {
           แตะเกมเพื่อขึ้นจอใหญ่ — ทุกเกมเล่นได้จริง ลุ้นกันทั้งงาน!
         </p>
       </div>
+      <NuxtLink to="/slideshow"
+        class="font-head ml-auto flex items-center gap-2 rounded-[16px] border-[3px] border-outline bg-white px-4 py-3 text-base font-extrabold text-outline shadow-hard-sm transition hover:-translate-y-0.5">
+        <Icon name="users" :size="20" color="#6D28D9" :stroke="2.5" />สไลด์โชว์รูปผู้เล่น
+      </NuxtLink>
     </div>
     <div class="mb-6" />
 
