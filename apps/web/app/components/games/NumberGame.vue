@@ -63,7 +63,7 @@ watch(() => store.lastEvent, (e) => {
       <div v-for="p in store.roundPlayers" :key="p.id" class="flex items-center gap-2.5 rounded-[14px] border-2 border-white/15 bg-white/[.06] px-3 py-1.5">
         <PlayerAvatar :player="p" :size="40" />
         <span class="font-head w-14 text-[15px] font-bold text-white">{{ p.nick }}</span>
-        <input type="range" min="1" max="100" :value="store.picks[p.id] ?? 50" :disabled="rolling" class="h-[7px] flex-1" style="accent-color:#FFD93D" @change="store.setPick(p.id, +($event.target as HTMLInputElement).value)" />
+        <input type="range" min="1" max="100" :value="store.picks[p.id] ?? 50" :disabled="rolling" class="h-[7px] flex-1" style="accent-color:#FFD93D" @input="store.setPick(p.id, +($event.target as HTMLInputElement).value)" />
         <span class="font-head flex h-[38px] w-[46px] items-center justify-center rounded-[10px] border-[2.5px] border-outline bg-accent-yellow text-[18px] font-extrabold text-outline">{{ store.picks[p.id] ?? 50 }}</span>
       </div>
     </div>

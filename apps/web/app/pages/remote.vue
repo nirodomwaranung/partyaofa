@@ -214,7 +214,7 @@ function reset() {
             <PlayerAvatar :player="p" :size="32" />
             <span class="font-head w-14 truncate text-sm font-bold">{{ p.nick }}</span>
             <input type="range" min="1" max="100" :value="store.picks[p.id] ?? 50" class="h-[6px] flex-1" style="accent-color:#FFD93D"
-              @change="store.setPick(p.id, +($event.target as HTMLInputElement).value)" />
+              @input="store.setPick(p.id, +($event.target as HTMLInputElement).value)" />
             <span class="font-head flex h-8 w-11 items-center justify-center rounded-[9px] border-2 border-outline bg-accent-yellow text-base font-extrabold">{{ store.picks[p.id] ?? 50 }}</span>
           </div>
         </div>
@@ -232,7 +232,7 @@ function reset() {
             <span class="font-head flex-1 truncate text-sm font-bold">{{ p.nick }}</span>
             <input type="number" min="0" step="0.01" :value="store.times[p.id] != null ? (store.times[p.id] as number) / 1000 : ''" placeholder="0.00"
               class="font-head w-24 rounded-[10px] border-[2.5px] border-accent-yellow bg-white px-2.5 py-1.5 text-right text-base font-extrabold text-outline outline-none"
-              @change="store.setTime(p.id, ($event.target as HTMLInputElement).value === '' ? null : Math.max(0, parseFloat(($event.target as HTMLInputElement).value) || 0) * 1000)" />
+              @input="store.setTime(p.id, ($event.target as HTMLInputElement).value === '' ? null : Math.max(0, parseFloat(($event.target as HTMLInputElement).value) || 0) * 1000)" />
             <span class="text-xs font-semibold text-[#9a86bd]">วิ</span>
           </div>
         </div>

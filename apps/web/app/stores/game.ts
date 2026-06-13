@@ -97,6 +97,9 @@ export const useGameStore = defineStore('game', {
         if (s.times) this.times = s.times;
       });
       $socket.on('game:event', (e: GameEvent) => (this.lastEvent = e));
+      // lightweight live sync for rapid per-player inputs (number / stopwatch)
+      $socket.on('picks:sync', (p: Record<string, number>) => (this.picks = p || {}));
+      $socket.on('times:sync', (t: Record<string, number>) => (this.times = t || {}));
 
       // restore admin session from stored JWT
       if (localStorage.getItem('aofa_token')) this.adminAuthed = true;

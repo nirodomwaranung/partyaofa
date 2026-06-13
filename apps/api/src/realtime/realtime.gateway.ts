@@ -261,29 +261,31 @@ export class RealtimeGateway implements OnGatewayConnection {
     await this.broadcastState();
   }
 
+  // These can fire rapidly (slider drag / typing), so they broadcast a tiny
+  // dedicated event instead of the full DB-backed state:sync — live + cheap.
   /** Set a player's number for เลขนี้พี่ขอ — PUBLIC (TV + remote). */
   @SubscribeMessage('number:setPick')
-  async setPick(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, value }: { playerId: string; value: number }) {
+  setPick(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, value }: { playerId: string; value: number }) {
     if (!playerId || typeof value !== 'number') return;
     this.picks = { ...this.picks, [playerId]: Math.max(1, Math.min(100, Math.round(value))) };
-    await this.broadcastState();
+    this.server.emit('picks:sync', this.picks);
   }
 
   /** Set/clear a player's recorded time (ms) for ยกเดียวโลกจำ — PUBLIC (TV + remote). */
   @SubscribeMessage('yk1:setTime')
-  async setTime(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, ms }: { playerId: string; ms: number | null }) {
+  setTime(@ConnectedSocket() _c: Socket, @MessageBody() { playerId, ms }: { playerId: string; ms: number | null }) {
     if (!playerId) return;
     const next = { ...this.times };
     if (ms == null || ms < 0) delete next[playerId];
     else next[playerId] = ms;
     this.times = next;
-    await this.broadcastState();
+    this.server.emit('times:sync', this.times);
   }
 
   @SubscribeMessage('yk1:clearTimes')
-  async clearTimes() {
+  clearTimes() {
     this.times = {};
-    await this.broadcastState();
+    this.server.emit('times:sync', this.times);
   }
 
   /** Background music control (play/pause, volume, track, youtube). */
