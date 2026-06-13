@@ -12,6 +12,7 @@ const active = ref(false);
 const holder = ref(0);
 const exploded = ref(false);
 const loserId = ref<string | null>(null);
+const history = ref<any[]>([]);
 let pass: any = null;
 
 // The bomb passes hand-to-hand and *decelerates* so it lands exactly on the
@@ -39,6 +40,8 @@ function animate(targetId: string) {
       if (left <= SLOW_FROM || step % 2 === 0) sounds.play('click'); // ticking, louder near the end
       if (step >= totalSteps) {
         active.value = false; exploded.value = true; loserId.value = targetId;
+        const lp = store.playerById(targetId);
+        history.value = [{ id: targetId, nick: lp?.nick ?? '' }, ...history.value].slice(0, 12);
         sounds.play('explosion');
         setTimeout(() => sounds.play('lose'), 200);
         return;
@@ -88,6 +91,19 @@ onBeforeUnmount(() => clearTimeout(pass));
     <div class="mt-3 flex gap-3">
       <button class="aofa-btn aofa-btn-pink px-[34px] py-3.5 text-[19px]" :disabled="active" @click="run">{{ active ? 'ระเบิดเดิน...' : 'จุดชนวน!' }}</button>
       <button class="aofa-btn aofa-btn-yellow px-[22px] py-3.5" @click="reset">รีเซ็ต</button>
+    </div>
+
+    <!-- who got blown up — history for this round -->
+    <div v-if="history.length" class="mx-auto mt-4 w-[380px] max-w-[94%] rounded-[18px] border-[3px] border-outline bg-white p-3.5 shadow-hard-btn">
+      <div class="font-head mb-2 flex items-center gap-1.5 text-[15px] font-extrabold text-outline"><Icon name="history" :size="16" color="#2A1B4D" />ประวัติคนโดนระเบิด</div>
+      <div class="flex flex-col gap-1.5">
+        <div v-for="(h, k) in history" :key="k" class="flex items-center gap-2.5 rounded-[11px] border-2 border-[#F6C6D2] bg-[#FCEEF1] px-2.5 py-1">
+          <PlayerAvatar :player="store.playerById(h.id)" :size="30" />
+          <span class="font-head flex-1 text-sm font-bold text-outline">{{ h.nick }}</span>
+          <Icon name="flame" :size="14" color="#D6336C" />
+          <span class="font-head text-xs font-extrabold text-[#D6336C]">โดนยก</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
